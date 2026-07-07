@@ -1,0 +1,68 @@
+-- estop_original.smv
+-- Faithful synchronous encoding of REQ-1..REQ-6 (ISO 13850 / ISO 3691-4
+-- derived requirements, Table II of the paper). No direct coupling
+-- between emergency_stop_button and continueRunning (no REQ-7).
+--
+-- Expected result:
+--   REQ-1..REQ-6            : PASS
+--   SAFETY-1 (G(c -> perm)) : FAIL, with a one-cycle counterexample
+--
+-- Run: NuSMV estop_original.smv
+
+MODULE main
+VAR
+  -- Inputs (unconstrained, chosen freely by the environment each step)
+  emergency_stop_button : boolean;  -- active-low: FALSE = pressed
+  resetButton           : boolean;
+  startButton           : boolean;
+
+  -- Outputs
+  eStopPermissionOk : boolean;
+  AutoModeAvailable : boolean;
+  HandModeAvailable : boolean;
+  continueRunning   : boolean;
+
+ASSIGN
+  -- Initial state: emergency (safe) state
+  init(eStopPermissionOk) := FALSE;
+  init(AutoModeAvailable) := FALSE;
+  init(HandModeAvailable) := FALSE;
+  init(continueRunning)   := FALSE;
+
+  -- Permission state machine: REQ-3 (reset grants), REQ-4 (E-stop revokes),
+  -- latching otherwise (FR-2).
+  next(eStopPermissionOk) := case
+    !emergency_stop_button                    : FALSE;  -- REQ-4
+    emergency_stop_button & resetButton       : TRUE;   -- REQ-3
+    TRUE                                      : eStopPermissionOk;  -- latch
+  esac;
+
+  -- Modes: REQ-1 / REQ-2
+  next(AutoModeAvailable) := eStopPermissionOk;
+  next(HandModeAvailable) := eStopPermissionOk;
+
+  -- Motion: REQ-5 / REQ-6 ONLY. Note: guarded by the CURRENT value of
+  -- eStopPermissionOk; both variables update synchronously. When
+  -- !eStopPermissionOk, REQ-1..6 impose no constraint on continueRunning;
+  -- the value is held (any deterministic choice here is a design decision
+  -- the original requirements do not make).
+  next(continueRunning) := case
+    eStopPermissionOk & startButton   : TRUE;   -- REQ-6
+    eStopPermissionOk & !startButton  : FALSE;  -- REQ-5
+    TRUE                              : continueRunning; -- unconstrained: hold
+  esac;
+
+-- ---------------------------------------------------------------
+-- The six formalized requirements (all expected to PASS)
+-- ---------------------------------------------------------------
+LTLSPEC NAME REQ1 := G(eStopPermissionOk -> X(AutoModeAvailable & HandModeAvailable))
+LTLSPEC NAME REQ2 := G(!eStopPermissionOk -> X(!AutoModeAvailable & !HandModeAvailable))
+LTLSPEC NAME REQ3 := G((emergency_stop_button & resetButton) -> X eStopPermissionOk)
+LTLSPEC NAME REQ4 := G(!emergency_stop_button -> X !eStopPermissionOk)
+LTLSPEC NAME REQ5 := G((eStopPermissionOk & !startButton) -> X !continueRunning)
+LTLSPEC NAME REQ6 := G((eStopPermissionOk & startButton) -> X continueRunning)
+
+-- ---------------------------------------------------------------
+-- Safety invariant (expected to FAIL: one-cycle permissive window)
+-- ---------------------------------------------------------------
+LTLSPEC NAME SAFETY1 := G(continueRunning -> eStopPermissionOk)
