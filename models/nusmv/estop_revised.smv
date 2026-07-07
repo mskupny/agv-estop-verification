@@ -1,0 +1,66 @@
+-- estop_revised.smv
+-- Revised encoding: adds REQ-7, a direct guard from the emergency stop
+-- input to motion inhibition within the same scan cycle.
+--
+-- Expected result: all properties PASS.
+--
+-- Run: NuSMV estop_revised.smv
+
+MODULE main
+VAR
+  emergency_stop_button : boolean;  -- active-low: FALSE = pressed
+  resetButton           : boolean;
+  startButton           : boolean;
+
+  eStopPermissionOk : boolean;
+  AutoModeAvailable : boolean;
+  HandModeAvailable : boolean;
+  continueRunning   : boolean;
+
+ASSIGN
+  init(eStopPermissionOk) := FALSE;
+  init(AutoModeAvailable) := FALSE;
+  init(HandModeAvailable) := FALSE;
+  init(continueRunning)   := FALSE;
+
+  next(eStopPermissionOk) := case
+    !emergency_stop_button              : FALSE;  -- REQ-4
+    emergency_stop_button & resetButton : TRUE;   -- REQ-3
+    TRUE                                : eStopPermissionOk;
+  esac;
+
+  next(AutoModeAvailable) := eStopPermissionOk;
+  next(HandModeAvailable) := eStopPermissionOk;
+
+  -- REQ-7: E-stop input inhibits motion directly, bypassing the
+  -- permission state machine. Also: no motion without permission.
+  next(continueRunning) := case
+    !emergency_stop_button            : FALSE;  -- REQ-7 (direct guard)
+    !eStopPermissionOk                : FALSE;  -- no motion w/o permission
+    eStopPermissionOk & startButton   : TRUE;   -- REQ-6
+    eStopPermissionOk & !startButton  : FALSE;  -- REQ-5
+    TRUE                              : continueRunning;
+  esac;
+
+-- ---------------------------------------------------------------
+-- Original requirements. NOTE: REQ-6 as originally stated is expected
+-- to FAIL against the revised model -- it conflicts with SAFETY-1/REQ-7
+-- when the E-stop is asserted while (perm & start) hold. The repair is
+-- REQ6_PRIME below (motion guaranteed only while E-stop not asserted).
+-- ---------------------------------------------------------------
+LTLSPEC NAME REQ1 := G(eStopPermissionOk -> X(AutoModeAvailable & HandModeAvailable))
+LTLSPEC NAME REQ2 := G(!eStopPermissionOk -> X(!AutoModeAvailable & !HandModeAvailable))
+LTLSPEC NAME REQ3 := G((emergency_stop_button & resetButton) -> X eStopPermissionOk)
+LTLSPEC NAME REQ4 := G(!emergency_stop_button -> X !eStopPermissionOk)
+LTLSPEC NAME REQ5 := G((eStopPermissionOk & !startButton) -> X !continueRunning)
+LTLSPEC NAME REQ6_ORIGINAL_EXPECTED_FAIL := G((eStopPermissionOk & startButton) -> X continueRunning)
+LTLSPEC NAME REQ6_PRIME := G((emergency_stop_button & eStopPermissionOk & startButton) -> X continueRunning)
+
+-- ---------------------------------------------------------------
+-- REQ-7 and safety invariants (all expected to PASS)
+-- ---------------------------------------------------------------
+LTLSPEC NAME REQ7    := G(!emergency_stop_button -> X !continueRunning)
+LTLSPEC NAME SAFETY1 := G(continueRunning -> eStopPermissionOk)
+LTLSPEC NAME SAFETY2 := G(!emergency_stop_button -> X !continueRunning)
+LTLSPEC NAME SAFETY3 := G((!eStopPermissionOk & !(emergency_stop_button & resetButton)) -> X !eStopPermissionOk)
+LTLSPEC NAME SAFETY4 := G(AutoModeAvailable <-> HandModeAvailable)
