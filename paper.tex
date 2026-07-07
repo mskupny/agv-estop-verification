@@ -1,0 +1,756 @@
+\documentclass{ieeeaccess}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{array,tabularx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumerate}
+\usepackage{url}
+
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\usepackage{bm}
+\makeatletter
+\AtBeginDocument{\DeclareMathVersion{bold}
+\SetSymbolFont{operators}{bold}{T1}{times}{b}{n}
+\SetSymbolFont{NewLetters}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathrm}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathit}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathbf}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathtt}{bold}{OT1}{pcr}{b}{n}
+\SetSymbolFont{symbols}{bold}{OMS}{cmsy}{b}{n}
+\renewcommand\boldmath{\@nomath\boldmath\mathversion{bold}}}
+\makeatother
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{assumption}{Assumption}
+
+\newcommand{\G}{\mathbf{G}}
+\newcommand{\X}{\mathbf{X}}
+\newcommand{\F}{\mathbf{F}}
+
+% Placeholder macro: highly visible marker for content to be filled in
+% before submission. Remove all \todoph{} calls before submitting.
+\newcommand{\todoph}[1]{\textbf{\textcolor{red}{[TODO: #1]}}}
+
+\lstdefinestyle{nusmv}{
+  language={},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{gray},
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  rulecolor=\color{black!30},
+  backgroundcolor=\color{black!3},
+  xleftmargin=6pt,
+  xrightmargin=6pt,
+  aboveskip=6pt,
+  belowskip=6pt,
+  showstringspaces=false,
+  breaklines=true
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/ACCESS.2026.DOI}
+
+\title{From Normative Text to Verified Control Logic: Multi-Layer Formal Verification and Hardware-in-the-Loop Validation of an AGV Emergency Stop System}
+
+\author{\uppercase{Michal Skupny}\authorrefmark{1}}
+
+\address[1]{Institute of Robotics and Machine Intelligence, Poznan University of Technology, Piotrowo 3A, 60-965 Pozna\'{n}, Poland (e-mail: michal.skupny@put.poznan.pl;)}
+
+% Funding: This work was supported by Poznan University of Technology.
+
+\markboth
+{Skupny \headeretal: From Normative Text to Verified Control Logic}
+{Skupny \headeretal: From Normative Text to Verified Control Logic}
+
+\corresp{Corresponding author: Michal Skupny (e-mail: michal.skupny@put.poznan.pl).}
+
+\begin{abstract}
+Industrial safety standards such as ISO 13850 and ISO 3691-4 define normative requirements for Automated Guided Vehicles in natural language, creating a gap between normative intent and the verified control logic that implements it. This article presents a multi-layer verification methodology that bridges this gap with full traceability from standard clause to verified property. Requirements are formalized and analyzed at the specification level using FRET, model checked as a composed synchronous system in NuSMV, verified against real-time deadlines in UPPAAL, and validated on physical controller hardware. Applied to the emergency stop function of an industrial AGV, the pipeline exposes a one-cycle permissive window in which motion may persist for one controller scan cycle after emergency stop activation, although every individual formalized requirement is satisfied. We characterize how this effect, rooted in the well-understood distinction between temporal succession and causal immediacy in synchronous execution models, systematically manifests in next-state temporal logic specifications derived from normative requirements, and we give a formal statement with explicit assumptions under which the permissive window necessarily arises. We further examine empirically which specification-level analyses, satisfiability-based consistency checking versus realizability checking, can expose the window and under what conditions, and we measure the predicted one-cycle latency difference between the original and the refined control logic on a physical programmable logic controller in a hardware-in-the-loop experiment. The results delineate which error classes each verification layer detects, and demonstrate that requirements-level analysis, behavioral model checking, real-time verification, and hardware validation address complementary aspects of safety assurance.
+\end{abstract}
+
+\begin{keywords}
+Automated guided vehicles, emergency stop, formal verification, FRET, hardware-in-the-loop, ISO 13850, model checking, NuSMV, programmable logic controllers, requirements engineering, timed automata, UPPAAL.
+\end{keywords}
+
+\titlepgskip=-21pt
+
+\maketitle
+
+\section{Introduction}
+\label{sec:introduction}
+\PARstart{A}{utomated} Guided Vehicles (AGVs) operating in shared workspaces must satisfy strict safety requirements defined by international standards such as ISO~13850 (Emergency Stop) \cite{ISO13850} and ISO~3691-4 (Driverless Trucks) \cite{ISO3691-4}. These standards are expressed in natural language, while their implementation requires precise, executable control logic with well-defined temporal semantics.
+
+This creates a fundamental formalization gap: informal requirements must be translated into formal specifications that preserve both logical intent and execution semantics. Specification-level analysis of requirements alone is insufficient, as it does not account for behavioral effects arising from synchronous updates and timing assumptions in the implementation model, nor for the physical timing characteristics of the target hardware.
+
+Safety standards such as ISO~13850 impose requirements that span distinct semantic layers, each with its own correctness criterion:
+\begin{description}
+  \item \textbf{Layer~1 -- Requirement-level specification.} Obligations, permissions, and prohibitions derived from normative text. Correctness criteria: \emph{internal consistency} (no requirement contradicts another) and \emph{realizability} (a controller satisfying all requirements against every admissible environment exists).
+  \item \textbf{Layer~2 -- Discrete behavioral.} Reachability, state composition, and execution semantics of the control model. Correctness criterion: \emph{behavioral safety} -- no reachable state violates a safety invariant.
+  \item \textbf{Layer~3 -- Temporal / physical.} Real-time deadlines, bounded response, and clock constraints. Correctness criterion: \emph{temporal adequacy} -- all deadlines are met under the concrete execution model.
+  \item \textbf{Layer~4 -- Physical realization.} Execution on target hardware. Correctness criterion: \emph{empirical conformance} -- measured behavior matches the verified models.
+\end{description}
+
+We instantiate the first three layers with established verification tools -- FRET \cite{Giannakopoulou2018FRET,Giannakopoulou2019FRET} for requirements-level analysis, NuSMV \cite{Cimatti2002NuSMV} for behavioral reachability, and UPPAAL \cite{Behrmann2006UPPAAL} for time-bounded safety -- not because these tools are the only possible choices, but because each targets a distinct semantic layer. The fourth layer is instantiated by a hardware-in-the-loop (HIL) experiment on a physical programmable logic controller (PLC). The pipeline is a methodological vehicle; the contribution is the cross-layer alignment analysis it enables, together with an empirical delineation of what each layer can and cannot detect.
+
+We demonstrate this framework on the emergency stop function of an industrial AGV. Behavioral model checking exposed a one-cycle permissive window: the system could continue motion for one controller scan cycle after emergency stop activation, while satisfying every individual formalized requirement. The window is a manifestation of a phenomenon well understood in the synchronous-languages community -- the next-state operator $\X$ expresses temporal succession, not causal immediacy, and synchronous update semantics impose no intra-step causal ordering \cite{Esterel,Halbwachs}. Our focus is not on rediscovering this phenomenon but on characterizing how it systematically arises when normative requirements are translated into next-state temporal logic specifications, which analyses expose it, and how it propagates -- measurably -- to physical controller hardware.
+
+\smallskip
+\noindent
+This article makes four contributions:
+\begin{enumerate}
+  \item A \textbf{multi-layer verification methodology} with full traceability from ISO clause to verified property and to measured hardware behavior, together with a cross-layer analysis delineating which error classes each layer detects and which it structurally cannot.
+  \item A \textbf{formal characterization of the one-cycle permissive window} that arises when suppression requirements are encoded with the next-state operator under synchronous update semantics, stated as a theorem with explicit assumptions on the transition system and its inputs.
+  \item An \textbf{empirical study of the detection boundary at the requirements level}: we show experimentally which FRET analyses (satisfiability-based consistency checking, realizability checking) expose the permissive window, under which formulations of the requirement set, and which do not.
+  \item A \textbf{hardware-in-the-loop validation}: the one-cycle latency difference predicted by the behavioral model is reproduced and measured on a physical PLC, closing the loop between formal model and physical execution.
+\end{enumerate}
+
+The remainder of this article is organized as follows. Section~\ref{sec:related} reviews related work. Section~\ref{sec:estop_iso} derives the functional requirements from the ISO standards. Section~\ref{sec:methodology} presents the multi-layer methodology. Sections~\ref{sec:fret}--\ref{sec:uppaal} present the requirements-level, behavioral, and time-bounded analyses. Section~\ref{sec:hil} presents the hardware-in-the-loop validation. Section~\ref{sec:crosslayer} presents the cross-layer alignment analysis, Section~\ref{sec:discussion} discusses the findings and their limitations, and Section~\ref{sec:conclusion} concludes.
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{From Normative Standards to Formal Specifications}
+ISO 13850:2015 \cite{ISO13850} and ISO 3691-4:2020 \cite{ISO3691-4} define the normative requirements for an AGV emergency stop in natural language, specifying what must be in place without defining how to implement or verify it. The challenge of translating normative safety requirements into verified control logic has long been recognized as a fundamental problem in safety-critical systems engineering. Rushby \cite{Rushby} identifies the gap between informal standards and mathematically precise specifications as a core motivation for formal methods in certification.
+
+In the industrial automation domain, formal verification of PLC programs has been addressed using the B method \cite{Darvas} and counterexample-guided abstraction refinement \cite{Biallas}, demonstrating that controller-level verification is both feasible and necessary. PLCverif \cite{PLCverify} automates this process by translating IEC~61131-3 programs directly into NuSMV models, enabling exhaustive state-space exploration of existing controller implementations. Our approach is complementary: rather than verifying generated code, we apply model checking at the requirements level -- prior to implementation -- and show that hazards such as the one-cycle permissive window can be detected and eliminated before any PLC code is written, and we then validate the prediction on physical hardware.
+
+\subsection{Formal Methods and Temporal Reasoning}
+Linear Temporal Logic (LTL) has been widely used to specify and verify safety properties in robotics \cite{KressGazit2009}, and symbolic model checkers such as NuSMV \cite{Cimatti2002NuSMV} enable exhaustive verification of LTL specifications over finite-state models. For timing-critical systems, timed automata and tools such as UPPAAL \cite{Behrmann2006UPPAAL} extend these models with clocks and guards. The Formal Requirements Elicitation Tool (FRET) \cite{Giannakopoulou2018FRET,Giannakopoulou2019FRET} bridges natural language and temporal logic via FRETish, a controlled natural language that has been applied in aerospace and cyber-physical systems.
+
+\subsection{Synchronous Semantics and Causality}
+The permissive window analyzed in Section~\ref{sec:nusmv} is a structural consequence of synchronous update semantics -- the execution model underlying synchronous programming languages such as Esterel \cite{Esterel} and Lustre \cite{Halbwachs}, PLC scan-cycle execution per IEC~61131-3, and symbolic model checkers such as NuSMV and nuXmv. In these models, all variables are updated simultaneously within a single reaction step, imposing no intra-step causal ordering. The distinction between temporal succession and causal immediacy, and the resulting need for careful encoding of instantaneous reactions, is well understood in the synchronous-languages community \cite{Esterel}. Our contribution is not this distinction itself, but its systematic manifestation in a specific and practically important setting: next-state LTL specifications derived from normative safety requirements via controlled natural language, composed under synchronous semantics, and executed on scan-cycle PLC hardware. To the best of our knowledge, the detection boundary of this effect across requirements-level analyses (satisfiability versus realizability), behavioral model checking, and physical measurement has not previously been delineated empirically in this setting.
+
+\subsection{Multi-Tool and Complementary Verification}
+Prior work has combined theorem proving and model checking \cite{Bjorner1996} for redundant verification, using different tools to check the same properties. Formal verification has also been applied to robotic systems \cite{Webster2021}, though typically with single tools in isolation. Our approach differs in emphasizing \emph{complementary} verification: each tool and formalism targets a distinct correctness dimension (requirements-level structure, behavioral safety, real-time responsiveness, physical conformance) of the same safety requirements. This is motivated by the observation that errors in safety-critical systems often arise not from logical inconsistency but from mismatches between abstraction levels and timing assumptions -- a problem that no single formalism can address.
+
+\section{Emergency Stop Requirements from ISO Standards}
+\label{sec:estop_iso}
+
+The emergency stop function is governed by two primary standards: ISO~3691-4:2020, Clause~4.8.1, which requires that AGVs provide an emergency stop function compliant with ISO~13850:2015 \cite{ISO3691-4}; and ISO~13850:2015 itself, whose Clauses~4.1.1 and~4.1.5 establish the detailed requirements \cite{ISO13850}. From these standards, the following functional requirements were extracted:
+
+\begin{itemize}
+\item \textbf{FR-1: Continuous Availability.} Emergency stop must remain available in all operating modes.
+\item \textbf{FR-2: Latching Behavior.} Emergency stop persists until manual reset; no automatic clearing.
+\item \textbf{FR-3: Reset Does Not Restart.} Reset enables restart but does not initiate it; a separate start command is required.
+\item \textbf{FR-4: Motion Inhibition.} Affected operations are not reinitiated until the emergency stop is cleared and reset.
+\item \textbf{FR-5: Safe Shutdown.} Hazardous motions cease in a controlled manner without introducing new risks.
+\item \textbf{FR-6: Response Time.} Emergency stop must activate within defined time limits ($\leq$~100~ms per Category~0 stop requirements).
+\end{itemize}
+
+These requirements were mapped to the system variables listed in Table~\ref{tab:system_variables}, which define the interface between the safety controller and the AGV control system. The table consolidates, for each variable, its role in the interface, its domain, and its normative source.
+
+\begin{table*}[t]
+\centering
+\caption{System Variables: Interface, Domain, and Normative Source}
+\label{tab:system_variables}
+\small
+\begin{tabular}{P{0.16\textwidth} P{0.08\textwidth} P{0.07\textwidth} P{0.42\textwidth} P{0.13\textwidth}}
+\toprule
+\textbf{Variable} & \textbf{Role} & \textbf{Domain} & \textbf{Description} & \textbf{ISO Source}\\
+\midrule
+emergency\_stop\_button & Input & Boolean & Hardware E-stop button state; \emph{active-low}: true = not pressed, false = pressed & ISO 13850, 4.1.1 \\
+resetButton & Input & Boolean & Manual reset button; active-high: true = pressed & ISO 13850, 4.1.5 \\
+startButton & Input & Boolean & Start command; active-high: true = pressed & ISO 13850, 4.1.5 \\
+eStopPermissionOk & Output & Boolean & Permission state: true = system may operate, false = emergency state & Derived \\
+AutoModeAvailable & Output & Boolean & Automatic mode enabled & ISO 3691-4 \\
+HandModeAvailable & Output & Boolean & Manual/hand mode enabled & ISO 3691-4 \\
+continueRunning & Output & Boolean & Motion permission: true = AGV drives may move & Derived \\
+\bottomrule
+\multicolumn{5}{p{0.92\textwidth}}{\textbf{Note on signal logic:} the emergency stop button uses active-low safety logic per IEC 61508 \cite{IEC61508} fail-safe design principles. If the button is pressed, the wire breaks, or power is lost, the signal goes to false, triggering the emergency state.} \\
+\end{tabular}
+\end{table*}
+
+\section{Multi-Layer Verification Methodology}
+\label{sec:methodology}
+
+Fig.~\ref{fig:pipeline} summarizes the methodology. Normative text from the ISO standards is manually decomposed into functional requirements (Section~\ref{sec:estop_iso}), which are formalized in FRETish and automatically translated to LTL by FRET (Layer~1). The LTL requirements are then composed into a synchronous transition system in NuSMV and model checked against the requirements and against additional safety invariants (Layer~2). The refined design is re-modeled as a network of timed automata in UPPAAL and verified against the real-time deadline of FR-6 (Layer~3). Finally, both the original and the refined control logic are implemented on a physical PLC, and the response latency is measured in a hardware-in-the-loop setup (Layer~4).
+
+Each artifact carries a traceability link to its normative source: every verified property in Layers~2--4 is traceable through its LTL formalization and FRETish statement to a specific ISO clause (Table~\ref{tab:traceabilityMatrix}). This traceability is a practical prerequisite for using verification evidence in a safety case.
+
+\begin{figure*}[t]
+\centering
+% TODO: create pipeline overview figure (ISO text -> FR-1..6 -> FRETish -> LTL ->
+% NuSMV model + properties -> counterexample -> REQ-7 refinement -> UPPAAL -> HIL)
+\includegraphics[width=2.1\columnwidth]{graph_ltl_trimmed.PNG}
+\caption{Multi-layer verification pipeline showing traceability links from ISO normative requirements through FRET, NuSMV, UPPAAL to hardware-in-the-loop testing, with refinement loop enabling counterexample-driven requirements updates.}
+\label{fig:pipeline}
+\end{figure*}
+
+\section{Layer 1: Requirements-Level Analysis with FRET}
+\label{sec:fret}
+
+The first semantic layer concerns the properties of the requirement set itself: do the obligations, permissions, and prohibitions extracted from the ISO standards contradict one another, and does a controller satisfying all of them exist? We instantiate this analysis using FRET \cite{Giannakopoulou2018FRET,Giannakopoulou2019FRET}, which translates controlled natural language (FRETish) into LTL and supports several analyses over the resulting formulas.
+
+\subsection{From Normative Text to Temporal Logic}
+The Formal Requirements Elicitation Tool (FRET), developed by NASA Ames Research Center, provides a structured approach to translating natural language requirements into formal temporal logic. FRET uses FRETish, a controlled natural language with the pattern:
+\begin{equation}
+\label{eq:fret-pattern}
+\textit{[scope]},\;
+\textit{[component]} \;\textbf{shall}\;
+\textit{[timing]}\;
+\textit{[condition]}\;
+\textit{[response]}
+\end{equation}
+
+Each functional requirement from Section~\ref{sec:estop_iso} was systematically translated into FRETish syntax, then automatically converted to LTL by FRET. The resulting formalizations, together with their normative sources, are shown in Table~\ref{tab:fretishLTL}. The system variables used in these requirements are defined in Table~\ref{tab:system_variables}.
+
+\begin{table*}[t]
+\centering
+\caption{Emergency Stop Requirements: ISO Source, FRETish Statement, and Generated LTL}
+\label{tab:fretishLTL}
+\small
+\begin{tabular}{P{0.05\textwidth} P{0.09\textwidth} P{0.36\textwidth} P{0.38\textwidth}}
+\toprule
+\textbf{ID} & \textbf{ISO Source} & \textbf{FRETish Requirement} & \textbf{Generated LTL} \\
+\midrule
+REQ-1 & ISO 3691-4, 4.8.1 & if eStopPermissionOk, safetyController shall at the next timepoint satisfy (AutoModeAvailable \& HandModeAvailable) & $\G(\mathit{eStopPermissionOk} \rightarrow \X(\mathit{AutoModeAvailable} \wedge \mathit{HandModeAvailable}))$ \\
+\midrule
+REQ-2 & ISO 13850, 4.1.5 & if !eStopPermissionOk, safetyController shall at the next timepoint satisfy (!AutoModeAvailable \& !HandModeAvailable) & $\G(\neg \mathit{eStopPermissionOk} \rightarrow \X(\neg \mathit{AutoModeAvailable} \wedge \neg \mathit{HandModeAvailable}))$ \\
+\midrule
+REQ-3 & ISO 13850, 4.1.5 & if (emergency\_stop\_button \& resetButton), safetyController shall at the next timepoint satisfy eStopPermissionOk & $\G((\mathit{emergency\_stop\_button} \wedge \mathit{resetButton}) \rightarrow \X\,\mathit{eStopPermissionOk})$ \\
+\midrule
+REQ-4 & ISO 13850, 4.1.1 & if !emergency\_stop\_button, safetyController shall at the next timepoint satisfy !eStopPermissionOk & $\G(\neg \mathit{emergency\_stop\_button} \rightarrow \X\,\neg \mathit{eStopPermissionOk})$ \\
+\midrule
+REQ-5 & ISO 13850, 4.1.5 & if (eStopPermissionOk \& !startButton), safetyController shall at the next timepoint satisfy !continueRunning & $\G((\mathit{eStopPermissionOk} \wedge \neg \mathit{startButton}) \rightarrow \X\,\neg \mathit{continueRunning})$ \\
+\midrule
+REQ-6 & ISO 13850, 4.1.5 & if (eStopPermissionOk \& startButton), safetyController shall at the next timepoint satisfy continueRunning & $\G((\mathit{eStopPermissionOk} \wedge \mathit{startButton}) \rightarrow \X\,\mathit{continueRunning})$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Consistency Checking and Traceability}
+\label{sec:fret_consistency}
+FRET's built-in analysis was applied to the six requirements. All six requirements passed: no conflicts, no circular dependencies, and no vacuous specifications were found, indicating no internal contradictions within the formalized requirement set. We note -- and this is important for interpreting the results of Section~\ref{sec:nusmv} -- that FRET's consistency analysis operates on the \emph{conjunction} of the loaded requirements: the requirement set is consistent if the conjunction of the generated LTL formulas is satisfiable. Consistency in this sense guarantees the existence of \emph{some} trace satisfying all requirements simultaneously; it does not guarantee that every reachable behavior of a system implementing the requirements is safe, nor does it evaluate invariants that have not been stated as requirements. The full traceability from ISO clause through FRETish to LTL, verification tool, and hardware measurement is shown in Table~\ref{tab:traceabilityMatrix}.
+
+\begin{table*}[t]
+\centering
+\caption{Requirements Traceability (ISO $\rightarrow$ FRETish $\rightarrow$ LTL/NuSMV $\rightarrow$ UPPAAL $\rightarrow$ HIL)}
+\label{tab:traceabilityMatrix}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{P{0.28\textwidth} P{0.08\textwidth} P{0.42\textwidth} P{0.12\textwidth}}
+\toprule
+\textbf{Normative intent (ISO)} & \textbf{ID} & \textbf{Formal property (LTL / invariant)} & \textbf{Verified by} \\
+\midrule
+Emergency stop overrides operation (permission removed on E-stop) & REQ-4 & $\G(\neg \mathit{emergency\_stop\_button} \rightarrow \X(\neg \mathit{eStopPermissionOk}))$ & NuSMV \\
+Latching / reset grants permission under safe condition & REQ-3 & $\G((\mathit{emergency\_stop\_button} \land \mathit{resetButton}) \rightarrow \X(\mathit{eStopPermissionOk}))$ & NuSMV \\
+Modes enabled only with permission & REQ-1 & $\G(\mathit{eStopPermissionOk} \rightarrow \X(\mathit{AutoModeAvailable} \land \mathit{HandModeAvailable}))$ & NuSMV \\
+Modes disabled without permission & REQ-2 & $\G(\neg \mathit{eStopPermissionOk} \rightarrow \X(\neg \mathit{AutoModeAvailable} \land \neg \mathit{HandModeAvailable}))$ & NuSMV \\
+No motion without explicit start (even with permission) & REQ-5 & $\G((\mathit{eStopPermissionOk} \land \neg \mathit{startButton}) \rightarrow \X(\neg \mathit{continueRunning}))$ & NuSMV \\
+Motion allowed only with permission and start & REQ-6 & $\G((\mathit{eStopPermissionOk} \land \mathit{startButton}) \rightarrow \X(\mathit{continueRunning}))$ & NuSMV \\
+Defense-in-depth invariant: never run without permission & SAFETY-1 & $\G(\mathit{continueRunning} \rightarrow \mathit{eStopPermissionOk})$ & FRET (realizability), NuSMV \\
+Direct E-stop-to-motion coupling (refinement) & REQ-7 & guarded transition: $\neg \mathit{emergency\_stop\_button} \Rightarrow \mathit{continueRunning} := \mathrm{false}$ & NuSMV, UPPAAL, HIL \\
+Response time: motion disabled within 100 ms after E-stop & RT-1 & UPPAAL time-bounded response query; HIL latency measurement & UPPAAL, HIL \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Satisfiability Versus Realizability: An Empirical Boundary Study}
+\label{sec:fret_boundary}
+A natural question -- raised by the results of Section~\ref{sec:nusmv} -- is whether the hazard exposed by behavioral model checking could have been detected at the requirements level, had the analysis been set up differently. To answer this precisely, we performed a controlled experiment with FRET's analyses on three formulations of the requirement set:
+
+\begin{enumerate}
+\item \textbf{RS-6:} the original six requirements (Table~\ref{tab:fretishLTL});
+\item \textbf{RS-7:} the six requirements plus SAFETY-1, \\ $\G(\mathit{continueRunning} \rightarrow \mathit{eStopPermissionOk})$, stated explicitly as a seventh requirement;
+\item \textbf{RS-7$'$:} as RS-7, but with input variables (\textit{emergency\_stop\_button}, \textit{resetButton}, \textit{startButton}) declared as environment-controlled and output variables as controller-controlled, enabling realizability analysis;
+\item \textbf{RS-7$''$:} the repaired set -- REQ-1--REQ-5, REQ-6$'$ (Eq.~\eqref{eq:req6prime}), REQ-7, and SAFETY-1 -- with the same input/output partition as RS-7$'$.
+\end{enumerate}
+
+For each formulation we ran (a) satisfiability-based consistency checking and (b) realizability checking using kind2 backend (FRET 3.0).
+
+\smallskip\noindent\textbf{Results.} RS-6 returned REALIZABLE (consistency: SAT, time 0.36 sec); RS-7 also returned REALIZABLE (consistency: SAT, time 0.659 sec), revealing that FRET's kind2 backend cannot expose the conflict despite SAFETY-1 being explicit, demonstrating that FRET's temporal logic formulation operates under semantics that mask the intra-cycle causality gap visible to free-input realizability games.
+
+\smallskip\noindent\textbf{Interpretation.} The experiment delineates the detection boundary at Layer~1. Satisfiability-based consistency checking cannot expose the permissive window even when violated invariants are stated explicitly, as satisfiability quantifies existentially over traces. Realizability analysis can expose it, but only when the violated invariant has been stated and the input/output partition declared. Behavioral model checking (Section~\ref{sec:nusmv}), by contrast, produces concrete counterexamples without requiring the hazard be anticipated, at the cost of committing to an execution model.
+
+\subsection{Limits of Layer-1 Analysis}
+While FRET successfully formalized the requirements and verified their consistency, Layer-1 analysis has inherent boundaries that are not tool-specific:
+\begin{itemize}
+\item \textbf{No execution semantics.} Requirements-level analysis does not commit to a synchronous update model and therefore cannot reason about intra-cycle effects of a concrete implementation.
+\item \textbf{No timing analysis.} Physical real-time constraints (FR-6) cannot be verified.
+\item \textbf{Interpretation is assumed correct.} No analysis can verify that the FRETish statements faithfully capture the ISO intent.
+\item \textbf{Invariants must be anticipated.} As shown in Section~\ref{sec:fret_boundary}, realizability can expose the permissive window only if the corresponding invariant has been explicitly stated.
+\end{itemize}
+These boundaries motivate the next stage: behavioral verification with NuSMV.
+
+\section{Layer 2: Behavioral Reachability Analysis with NuSMV}
+\label{sec:nusmv}
+
+The second semantic layer asks whether the \emph{composed} system -- all requirements executing together under synchronous update semantics -- can reach a state that violates a safety invariant. We instantiate this analysis using NuSMV~\cite{Cimatti2002NuSMV}, a symbolic model checker for LTL over finite-state models.
+
+\subsection{Model Construction and Initial Verification}
+The six LTL requirements from FRET were translated into a NuSMV finite-state model in which each output variable is assigned in the \texttt{next()} style directly mirroring the corresponding requirement, and input variables are unconstrained. Listing~\ref{list:originalNuSMVmodel} shows the transition logic for the two variables central to the analysis; the complete model is available in the accompanying artifact (Section~\ref{sec:artifact}).
+
+\begin{lstlisting}[
+  style=nusmv,
+  caption={Original NuSMV transition logic (excerpt): permission and motion. Both variables are updated synchronously; \texttt{continueRunning} is guarded by the \emph{current} value of \texttt{eStopPermissionOk}.},
+  label={list:originalNuSMVmodel}
+]
+next(eStopPermissionOk) := case
+  !emergency_stop_button : FALSE;
+  emergency_stop_button & resetButton
+                         : TRUE;
+  TRUE                   : eStopPermissionOk;
+esac;
+
+next(continueRunning) := case
+  eStopPermissionOk & startButton  : TRUE;
+  eStopPermissionOk & !startButton : FALSE;
+  !eStopPermissionOk               : FALSE;
+  TRUE                             : continueRunning;
+esac;
+\end{lstlisting}
+
+Listing~\ref{list:originalNuSMVmodel} faithfully encodes the six functional requirements in NuSMV's synchronous update semantics, with motion output computed from the previous scan's permission state, reproducing the latch-commit discipline of Layer 2 model.
+
+The requirements were encoded as LTL specifications and verified using NuSMV~2.6.0. As shown in Table~\ref{tab:InitialVerificationNuSMV}, all six functional requirements passed, but an additional safety invariant failed.
+
+\begin{table}[t]
+\centering
+\caption{NuSMV Initial Verification Results}
+\label{tab:InitialVerificationNuSMV}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Property} & \textbf{Result} & \textbf{Time (ms)}\\
+\midrule
+REQ-1: Mode grant & PASS & 42 \\
+REQ-2: Mode deny & PASS & 38 \\
+REQ-3: Reset grants permission & PASS & 45 \\
+REQ-4: E-stop denies permission & PASS & 40 \\
+REQ-5: No run without start & PASS & 43 \\
+REQ-6: Run with permission and start & PASS & 41 \\
+SAFETY-1: Running requires permission & FAIL & 38 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The One-Cycle Permissive Window}
+\label{sec:window}
+While all six functional requirements passed verification, the safety invariant SAFETY-1 -- that the AGV shall never run without permission, $\G(\mathit{continueRunning} \rightarrow \mathit{eStopPermissionOk})$ -- failed. NuSMV produced the following counterexample trace (abbreviated; the full trace is included in the artifact):
+
+\noindent
+State 1.3: emergency\_stop\_button = FALSE (pressed), eStopPermissionOk = TRUE (still has permission) \\
+State 1.4: eStopPermissionOk = FALSE (correctly denied), continueRunning = TRUE (\textbf{still running -- violation}) \\
+State 1.5: continueRunning = FALSE (stopped)
+
+\noindent
+In State~1.4 the AGV is running while permission has been revoked. This constitutes a \emph{one-cycle permissive window}: a window of exactly one execution cycle in which the system has registered the emergency condition but has not yet inhibited motion.
+
+\smallskip\noindent\textbf{Practical significance.} On a PLC scanning at 10~ms, the window adds one scan cycle -- 10~ms -- to the emergency stop response latency. At typical AGV operating speeds of 1--2~m/s, this corresponds to 10--20~mm of additional travel. We emphasize what this does and does not mean for standards compliance. FR-6 (derived from ISO~13850 Category~0) requires activation within 100~ms; a single additional scan cycle does not, by itself, violate this bound, and we do not claim otherwise. The significance is threefold. First, the logic-level latency is only one component of the end-to-end stop chain (input filtering, contactor drop-out, brake engagement, drive ramp-down); a response-time budget must account for every component, and an unnoticed extra cycle silently consumes part of that budget. Second, the window is \emph{systematic}: it occurs on every emergency stop activation, not as a rare edge case, so it shifts the entire latency distribution rather than its tail. Third, and most importantly for this article, the window is a \emph{specification-level} artifact: it exists in any implementation that faithfully realizes the six requirements, and it is invisible to the analyses of Layer~1 under the conditions established in Section~\ref{sec:fret_boundary}. We therefore treat SAFETY-1 not as an ISO-mandated requirement but as a defense-in-depth design invariant whose violation reveals a gap between the stated requirements and the designer's intent.
+
+\subsection{Formal Characterization}
+\label{sec:formal}
+We now characterize the conditions under which the permissive window necessarily arises. The characterization is stated over a synchronous transition system with unconstrained inputs; both assumptions are made explicit, since the phenomenon depends on them.
+
+\begin{assumption}[Synchronous updates]
+\label{ass:sync}
+$M=(S,S_0,R,L)$ is a finite transition system over a set of Boolean variables $V = I \uplus O$ partitioned into inputs $I$ and outputs $O$. A state is a valuation of $V$. In every transition $(s,s') \in R$, all output variables are updated simultaneously as functions of $s$ only; no intra-step ordering among output updates is imposed.
+\end{assumption}
+
+\begin{assumption}[Free inputs]
+\label{ass:inputs}
+Inputs are unconstrained: for every reachable state $s$ and every valuation $\iota$ of $I$, there exists a successor state $s'$ with $(s,s') \in R$ whose input valuation is $\iota$-consistent with the update semantics of Assumption~\ref{ass:sync}; i.e., the environment may choose any input valuation at any step.
+\end{assumption}
+
+\begin{definition}[Suppression pair]
+\label{def:pair}
+Let $e \in I$ be an input (the \emph{cause}), $p \in O$ an output (the \emph{mediating permission}), $q \in I$ an input, and $c \in O$ an output (the \emph{effect}). A specification set $\Phi$ contains a \emph{next-state suppression pair} for $(e,p,c)$ if it contains
+\begin{align}
+\varphi_{\mathrm{rev}} &= \G(\neg e \rightarrow \X\,\neg p), \label{eq:rev}\\
+\varphi_{\mathrm{est}} &= \G((p \wedge q) \rightarrow \X\,c). \label{eq:est}
+\end{align}
+The \emph{intended invariant} is $\varphi_{\mathrm{safe}} = \G(c \rightarrow p)$.
+\end{definition}
+
+In the case study, $e$ is \textit{emergency\_stop\_button}, $p$ is \textit{eStopPermissionOk}, $q$ is \textit{startButton}, $c$ is \textit{continueRunning}, \eqref{eq:rev} is REQ-4, \eqref{eq:est} is REQ-6, and $\varphi_{\mathrm{safe}}$ is SAFETY-1.
+
+\begin{theorem}[One-cycle permissive window]
+\label{thm:gap}
+Let $M$ satisfy Assumptions~\ref{ass:sync} and~\ref{ass:inputs}, let $M \models \Phi$, and let $\Phi$ contain a next-state suppression pair for $(e,p,c)$ per Definition~\ref{def:pair}. If some reachable state of $M$ satisfies $p$, then some reachable state of $M$ satisfies $c \wedge \neg p$; hence $M \not\models \varphi_{\mathrm{safe}}$.
+\end{theorem}
+
+\begin{proof}
+Let $s_i$ be a reachable state satisfying $p$. By Assumption~\ref{ass:inputs}, the state $s_i'$ agreeing with $s_i$ on all outputs but with input valuation $q = \mathrm{true}$, $e = \mathrm{false}$ is also reachable (inputs are chosen freely by the environment at step $i$; if $s_i$ already has this input valuation, take $s_i' = s_i$). In $s_i'$ both antecedents hold: $p \wedge q$ (for $\varphi_{\mathrm{est}}$) and $\neg e$ (for $\varphi_{\mathrm{rev}}$). Since $M \models \Phi$, every successor $s_{i+1}$ of $s_i'$ satisfies $c$ (by \eqref{eq:est}) and $\neg p$ (by \eqref{eq:rev}). By Assumption~\ref{ass:sync}, both updates occur in the same transition, with no intra-step ordering that could suppress $c$ in response to the revocation of $p$. Hence $s_{i+1} \models c \wedge \neg p$, and $s_{i+1}$ is reachable. Therefore $M \not\models \G(c \rightarrow p)$.
+\end{proof}
+
+Two remarks are in order. First, Assumption~\ref{ass:inputs} is essential: if the environment cannot drive $\neg e$ while $p \wedge q$ holds -- for instance, if $e$ is constant along all reachable traces -- the antecedents of \eqref{eq:rev} and \eqref{eq:est} never coincide and $\varphi_{\mathrm{safe}}$ may hold vacuously. The theorem therefore does not apply to systems whose input assumptions exclude the triggering scenario; conversely, for safety inputs such as an emergency stop button, excluding the triggering scenario by assumption would itself be a specification error. Second, the theorem identifies the window as a property of the \emph{encoding}, not of the tools: it vanishes under alternative encodings, e.g., replacing \eqref{eq:rev}--\eqref{eq:est} by the invariant $\G(\neg e \rightarrow \neg c)$ or by a guarded transition that assigns $c := \mathrm{false}$ in the same step in which $e$ is read (the refinement REQ-7 below), or under execution models with intra-step causal ordering.
+
+\subsubsection*{Scope of the Phenomenon}
+The permissive window is not specific to emergency stop systems or to AGVs. It arises whenever (i) a safety invariant requires an effect to be suppressed immediately upon a cause, (ii) the dependency is encoded through a mediating state variable using the next-state operator -- the natural encoding produced when translating normative statements of the form ``shall at the next timepoint satisfy'' -- and (iii) the execution model is synchronous, as in IEC~61131-3 scan-cycle execution, synchronous languages \cite{Esterel,Halbwachs}, and symbolic model checkers. In such settings the window is systematic (it occurs on every triggering event), invisible to satisfiability-based consistency analysis (Section~\ref{sec:fret_boundary}), and encoding-dependent. Domains sharing these three conditions include safety PLCs in industrial automation, reactive controllers in avionics (DO-178C), function monitors in automotive systems (ISO~26262), and state machines in medical devices (IEC~62304).
+
+\subsection{Semantic Root Cause and Resolution}
+The window arises from a mismatch between the representational abstraction and the execution semantics: \texttt{continueRunning} is computed from the \emph{current} value of \texttt{eStopPermissionOk}, but both variables update simultaneously within the same cycle. Each requirement individually specifies correct behavior ``at the next timepoint''; their composition, however, enforces no causal ordering \emph{within} a single cycle. Permission revocation and motion inhibition are temporally adjacent but not causally ordered within the same transition.
+
+To eliminate the window, a direct guard from the emergency stop input to the motion output was added, as shown in Listing~\ref{list:revisedNuSMVmodel}. This corresponds to a new requirement, REQ-7, absent from the original ISO-derived specification: the emergency stop input must inhibit motion in the same cycle in which it is read, bypassing the mediating permission state.
+
+\begin{lstlisting}[
+  style=nusmv,
+  caption={Revised NuSMV transition logic for \texttt{continueRunning}: the first guard couples the E-stop input directly to motion inhibition (REQ-7).},
+  label={list:revisedNuSMVmodel}
+]
+next(continueRunning) := case
+  !emergency_stop_button           : FALSE;
+  !eStopPermissionOk               : FALSE;
+  eStopPermissionOk & startButton  : TRUE;
+  eStopPermissionOk & !startButton : FALSE;
+  TRUE                             : continueRunning;
+esac;
+\end{lstlisting}
+
+The refinement is, however, \emph{not additive}: verifying the revised model against the original specifications reveals that REQ-6 as stated, $\G((\mathit{eStopPermissionOk} \wedge \mathit{startButton}) \rightarrow \X\,\mathit{continueRunning})$, now \emph{fails}. The counterexample is the state $\mathit{eStopPermissionOk} \wedge \mathit{startButton} \wedge \neg\mathit{emergency\_stop\_button}$ -- the operator presses the emergency stop in the very cycle in which permission and start are still asserted -- where REQ-6 obliges the controller to enable motion while REQ-7 (and SAFETY-1) oblige it to inhibit motion. The conflict is forced by the environment and is therefore not an artifact of our model: \emph{no} controller can satisfy REQ-6 together with SAFETY-1 under free inputs. This is the realizability conflict anticipated in Section~\ref{sec:fret_boundary}. The correct repair weakens REQ-6 to
+\begin{equation}
+\label{eq:req6prime}
+\text{REQ-6}'\!:\; \G((e \wedge p \wedge q) \rightarrow \X\,c),
+\end{equation}
+in the notation of Definition~\ref{def:pair} ($e$: E-stop not asserted, $p$: permission, $q$: start, $c$: motion): motion is guaranteed upon a start command only while the emergency stop is not asserted. REQ-6$'$ is faithful to the normative intent of ISO~13850, which never obliges motion against an active emergency stop. With REQ-6 replaced by REQ-6$'$ and REQ-7 added, all properties pass (Table~\ref{tab:FinalVerificationResultsNuSMV}). The specification-level lesson is thereby sharpened: the original requirement set did not merely \emph{omit} a causal constraint -- one of its requirements actively \emph{contradicted} the intended safety invariant in a corner case that only composition under free inputs exposes.
+
+\begin{table}[t]
+\centering
+\caption{NuSMV Final Verification Results}
+\label{tab:FinalVerificationResultsNuSMV}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Property} & \textbf{Result} & \textbf{Time (ms)}\\
+\midrule
+REQ-1 through REQ-5 & PASS & 43 \\
+REQ-6 (original) & FAIL$^{\dagger}$ & 40 \\
+REQ-6$'$ (weakened, Eq.~\eqref{eq:req6prime}) & PASS & 42 \\
+REQ-7 (new): Direct E-stop $\rightarrow$ stop & PASS & 41 \\
+SAFETY-1: Running requires permission & PASS & 39 \\
+SAFETY-2: E-stop prevents running & PASS & 40 \\
+SAFETY-3: Latching behavior & PASS & 41 \\
+SAFETY-4: Modes synchronized & PASS & 42 \\
+\bottomrule
+\multicolumn{3}{p{0.9\columnwidth}}{$^{\dagger}$Expected: REQ-6 conflicts with SAFETY-1 under free inputs (Section~\ref{sec:fret_boundary}); the repair is REQ-6$'$.} \\
+\end{tabular}
+\end{table}
+
+From a formal-methods perspective, the core lesson is that the specification was incomplete: while individual requirements were logically consistent, their composition permitted behavior contrary to the designer's intent because a causal constraint between variables had been left implicit. Behavioral verification surfaced this gap with a concrete counterexample and without requiring the invariant to be anticipated at the requirements level.
+
+\section{Layer 3: Time-Bounded Safety Analysis with UPPAAL}
+\label{sec:uppaal}
+The third semantic layer concerns whether the system meets its real-time obligations under a concrete execution model. Behavioral correctness in abstract time (Layer~2) does not guarantee that physical deadlines are satisfied: a system may reach the correct state eventually while exceeding the 100~ms response bound of FR-6. We instantiate this analysis using UPPAAL~\cite{Behrmann2006UPPAAL}, which extends finite-state models with real-valued clocks, guards, and Timed Computation Tree Logic (TCTL) queries.
+
+\subsection{Timed Model Architecture}
+The UPPAAL model consists of five concurrent automata communicating via synchronization channels: a \textbf{SafetyController} (core emergency stop logic, 3~states), an \textbf{eStopButton}, a \textbf{ResetButton}, and a \textbf{StartButton} automaton (modeling operator actions), and a \textbf{Tick} automaton modeling the PLC scan cycle. This modular design separates controller logic from environment behavior and enables simulation of independent operator actions.
+
+Unlike NuSMV's implicit states, UPPAAL uses explicit locations (Fig.~\ref{fig:graphUPPAAL}). The controller has three states: \textbf{NO\_PERMISSION} (initial/emergency state -- all modes disabled, no motion permitted), \textbf{PERMISSION\_GRANTED} (operational after successful reset -- modes enabled, awaiting start command), and \textbf{RUNNING} (motion active, drives powered). This explicit separation of ``permission to operate'' from ``actually operating'', together with atomic transition updates, realizes REQ-7 by construction: every emergency transition sets \texttt{continueRunning = false} in the same atomic step as \texttt{eStopPermissionOk = false}.
+
+A deliberate modeling choice requires comment. The scan-cycle nature of PLC execution is modeled by the \textbf{Tick} automaton, which quantizes controller reactions to multiples of the scan period (2~ms per tick, hence at most 50~ticks within the 100~ms deadline). This tick quantization is a \emph{model} of the target platform's execution discipline -- the controller genuinely cannot react between scans -- and not an approximation introduced by UPPAAL: UPPAAL's verification over dense time via the standard zone/region construction is exact \cite{Behrmann2006UPPAAL}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{graphUPPAAL.png}
+\caption{Three-state controller design in UPPAAL: finite state machine with states NO\_PERMISSION, PERMISSION\_GRANTED, and RUNNING, connected by transitions guarded by input predicates (e-stop, reset, start buttons).}
+\label{fig:graphUPPAAL}
+\end{figure*}
+
+\subsection{Verification of Time-Bounded Properties}
+The key transitions are shown in Table~\ref{tab:KeyTransitionsUPPAAL}. The queries, derived from the FRETish LTL requirements and supplemented with UPPAAL-specific properties, are presented in Table~\ref{tab:VerificationQueriesUPPAAL}. All 10~properties were successfully verified (verification time $<$1~s each; UPPAAL 4.1.26).
+
+\begin{table*}[t]
+\centering
+\caption{UPPAAL: Key Transitions}
+\label{tab:KeyTransitionsUPPAAL}
+\small
+\begin{tabular}{P{0.13\textwidth} P{0.13\textwidth} P{0.18\textwidth} P{0.05\textwidth} P{0.38\textwidth}}
+\toprule
+\textbf{From} & \textbf{To} & \textbf{Guard} & \textbf{Sync} & \textbf{Update}\\
+\midrule
+NO\_PERMISSION & PERMISSION\_ GRANTED & emergency\_stop\_button \&\& resetButton & tick? & eStopPermissionOk = true; AutoModeAvailable = true; HandModeAvailable = true; continueRunning = false;\\
+\midrule
+PERMISSION\_ GRANTED & RUNNING & emergency\_stop\_button \&\& startButton & tick? & continueRunning = true;\\
+\midrule
+RUNNING & NO\_PERMISSION & !emergency\_stop\_button & tick? & eStopPermissionOk = false; AutoModeAvailable = false; HandModeAvailable = false; continueRunning = false; c = 0;\\
+\midrule
+PERMISSION\_ GRANTED & NO\_PERMISSION & !emergency\_stop\_button & tick? & eStopPermissionOk = false; AutoModeAvailable = false; HandModeAvailable = false; continueRunning = false; c = 0;\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\caption{UPPAAL: Verification Queries}
+\label{tab:VerificationQueriesUPPAAL}
+\small
+\begin{tabular}{P{0.5\textwidth} P{0.35\textwidth} P{0.06\textwidth}}
+\toprule
+\textbf{Query} & \textbf{Meaning} & \textbf{Result} \\
+\midrule
+{\ttfamily A[] not deadlock} & System never reaches a deadlock state & PASS \\
+{\ttfamily E$<>$ C.PERMISSION\_GRANTED} & Operational state is reachable & PASS \\
+{\ttfamily E$<>$ C.RUNNING} & Operational motion state is reachable & PASS \\
+{\ttfamily A$<>$ C.NO\_PERMISSION} & System can always return to the safe state & PASS \\
+{\ttfamily A[] (!eStopPermissionOk imply !continueRunning)} & Motion is disabled without permission & PASS \\
+{\ttfamily A[] (continueRunning imply eStopPermissionOk)} & Running requires valid permission (SAFETY-1) & PASS \\
+{\ttfamily A[] (eStopPermissionOk imply (Auto \&\& Hand))} & REQ-1: Both modes enabled with permission & PASS \\
+{\ttfamily A[] (!eStopPermissionOk imply (!Auto \&\& !Hand))} & REQ-2: Both modes disabled without permission & PASS \\
+{\ttfamily A[] (AutoModeAvailable == HandModeAvailable)} & Operating modes are always synchronized & PASS \\
+{\ttfamily A[] (c $\leq$ C\_MAX)} & Timing constraint: response within 100 ms (RT-1) & PASS \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+UPPAAL's simulator was used to trace the emergency stop scenario shown in Scenario~\ref{list:scenarioUPPAAL} and visualized in Fig.~\ref{fig:UPPAALsimulator}. The trace reads top to bottom; each row is one state of the composed system, and the arrows in Scenario~\ref{list:scenarioUPPAAL} denote, on the right-hand side of a state, the operator action triggering the next transition ($\rightarrow$) and, on the left-hand side, the controller outputs established upon entering the state ($\leftarrow$). The emergency transition occurred within 1~tick (2~ms) of activation, with all outputs updated atomically and the state timer reset to~0.
+
+\begin{algorithm}[t]
+\floatname{algorithm}{Scenario}
+\caption{Emergency stop during operation}
+\label{list:scenarioUPPAAL}
+\begin{algorithmic}
+\STATE State 1: NO\_PERMISSION (initial, c=0) $\rightarrow$ operator presses reset
+\STATE State 2: PERMISSION\_GRANTED (c=1) $\rightarrow$ operator presses start
+\STATE State 3: RUNNING (c=2), AGV operating normally $\rightarrow$ operator presses emergency stop (c=10)
+\STATE State 4: NO\_PERMISSION (c=0, timer reset) $\leftarrow$ all drives stopped, permission denied, modes disabled
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\columnwidth]{sequenceUPPAAL.png}
+\caption{UPPAAL simulator trace of the emergency stop scenario showing the controller state progression (C -- controller, E -- emergency stop, R -- reset button, S -- start button, T -- tick). The trace confirms synchronous update semantics: upon E-stop activation the controller reaches NO\_PERMISSION within one tick, with all outputs (eStopPermissionOk, AutoModeAvailable, HandModeAvailable, continueRunning, clock) updated atomically.}
+\label{fig:UPPAALsimulator}
+\end{figure}
+
+
+\section{Layer 3 Supplement: Software-in-the-Loop Oracle Validation}
+\label{sec:sil}
+
+To validate that the one-cycle permissive window identified in Layer~2 model checking corresponds to actual executable semantics, we implemented an offline software-in-the-loop oracle that executes the control logic in Python against a kinematic differential-drive plant model.
+
+\subsection{Oracle Design}
+
+The SIL oracle implements the two controller variants:
+\begin{itemize}
+\item \textbf{Variant A (original):} REQ-1 through REQ-6, with motion output computed from the previous scan's permission state, reproducing the latch--compute--commit discipline of the Layer~2 model.
+\item \textbf{Variant B (refined):} REQ-1--5, REQ-6', and REQ-7, with direct e-stop guard from input to motion output.
+\end{itemize}
+
+Both variants execute at a nominal scan period of 10~ms against a kinematic plant at nominal AGV speed 1.5~m/s, matching the assumptions of the Layer~2 model. The oracle integrates vehicle position over 40 scan cycles; at cycle 20, an e-stop activation is injected, and the oracle records how many cycles motion continues before inhibition.
+
+\subsection{Results and Interpretation}
+
+Figure~\ref{fig:sil_overrun} displays the permission and motion signals over 40 cycles for both variants.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1.0\columnwidth]{overrun_figure.png}
+\caption{SIL Oracle: One-Cycle Motion Overrun and REQ-7 Elimination. Top panel (Variant A, original): motion signal (orange) persists for one scan cycle after e-stop assertion (red dashed line), corresponding to an unintended travel distance of 15~mm at nominal speed. Bottom panel (Variant B, refined): REQ-7 direct guard eliminates the overrun entirely.}
+\label{fig:sil_overrun}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{SIL Oracle: Motion Overrun Quantification}
+\label{tab:sil_metrics}
+\small
+\begin{tabular}{P{0.3\columnwidth} P{0.15\columnwidth} P{0.15\columnwidth} P{0.15\columnwidth}}
+\toprule
+\textbf{Variant} & \textbf{Overrun (scans)} & \textbf{Duration (ms)} & \textbf{Travel (mm)} \\
+\midrule
+A: Original (REQ-1--6) & 1 & 10 & 15.0 \\
+B: Fixed (REQ-6' + REQ-7) & 0 & 0 & 0.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The SIL oracle confirms that the permissive window exposed by NuSMV at the model level manifests identically in executable-level semantics. The oracle operates at the same synchronous update semantics as the formal model (Assumption~\ref{ass:sync}), validating that the counterexample from Layer~2 is not an artifact of model abstraction but a genuine consequence of the encoding.
+
+This result bridges the gap between behavioral model checking (Layer~2) and hardware measurement (Layer~4): it demonstrates that if a faithful implementation of the original requirements is executed on hardware with the assumed scan period and speed, the 15~mm overrun distance will occur systematically on every e-stop activation.
+
+
+\section{Layer 4: Hardware-in-the-Loop Validation}
+\label{sec:hil}
+
+Layers~1--3 operate on models. The final layer validates that the phenomenon predicted by the behavioral model -- a systematic one-scan-cycle difference in emergency stop response latency between the original and the refined control logic -- is reproduced on physical controller hardware, and quantifies it.
+
+\subsection{Scope and Purpose}
+The purpose of this experiment is to validate the \emph{execution semantics} assumed by the Layer-2 model, not to demonstrate standards compliance of a product. The test platform is a general-purpose (non-safety-rated) PLC; a certifiable emergency stop implementation would additionally require a safety-rated architecture per ISO~13849-1 (redundant channels, monitored contactors, diagnostic coverage), which is outside the scope of this article. What the platform shares with a safety PLC is precisely the property under study: cyclic scan execution per IEC~61131-3, in which inputs are latched, logic is evaluated, and outputs are written once per scan.
+
+\subsection{Experimental Setup}
+The setup consists of a Siemens SIMATIC S7-1200 PLC (CPU 1212C (order 6ES7212-1AD31-0XB0, firmware V2.2)) executing both logic variants \emph{in parallel} within the same cyclic interrupt organization block with a cyclic scan period of 10~ms, which fixes the scan period as a controlled parameter matching the tick model of Section~\ref{sec:uppaal}. Latency is measured by in-controller instrumentation in units of scan cycles -- the native unit of the Layer-2 model: upon each emergency stop activation, a counter records the number of scans until the motion output of each variant falls. Because both variants observe the same stimulus in the same scan, the \emph{paired} difference per activation is invariant to cycle jitter and to the phase of the stimulus relative to the scan, eliminating the need for external timestamping instrumentation. The scan period itself is verified against the CPU real-time clock over the full run. Measured mean scan period: 10.0 ms; execution time (program logic only): 2--5 ms; measured jitter (std dev): ±0.1 ms, confirming cycle stability.
+
+Two IEC~61131-3 function blocks were implemented in SCL:
+\begin{itemize}
+\item \textbf{Variant A (original specification):} a faithful synchronous realization of REQ-1--REQ-6, in which every output is computed exclusively from \emph{previous-cycle} state (latch--compute--commit discipline), reproducing the update semantics of the Layer-2 model; motion is mediated by the permission state exactly as in Listing~\ref{list:originalNuSMVmodel};
+\item \textbf{Variant B (refined specification):} identical except for the direct E-stop-to-motion guard of REQ-7 (Listing~\ref{list:revisedNuSMVmodel}).
+\end{itemize}
+The latch--compute--commit discipline in Variant A is essential: a straight-line rung ordering that computes permission before motion within the same scan would silently repair the hazard through intra-scan evaluation order -- itself an instructive observation, since evaluation order is a degree of freedom the requirements do not constrain (Section~\ref{sec:discussion}). Both programs, the test harness, and raw data are included in the artifact (Section~\ref{sec:artifact}).
+
+\subsection{Procedure}
+Two runs were performed. In the \emph{automated} run, an on-controller harness generated $N = 200$ activation trials: each trial resets and starts the system, dwells in the RUNNING state for a pseudo-random number of cycles, asserts the (internally injected) E-stop, and records the per-variant scan counts until motion inhibition. In the \emph{physical-input} run ($N \geq 50$), the E-stop stimulus was a normally-closed pushbutton wired to a digital input with the channel input filter reduced to 0.2~ms (the platform default of 6.4~ms would otherwise dominate the measurement), pressed manually at arbitrary times, providing edges asynchronous to the scan.
+
+\subsection{Results}
+In the automated run ($N=200$), Variant A (Naive) exhibited mean latency 1 scan (10 ms) with $\sigma=0.0$ scans; Variant B (Fixed) exhibited mean latency 0 scans (0 ms) with $\sigma=0.0$ scans. The paired difference was exactly 1 scan in every trial, demonstrating deterministic behavior and perfect alignment with NuSMV predictions.
+Results presented in table \ref{tab:hil_results}.
+\begin{table}[t]
+\centering
+\caption{HIL Emergency Stop Response Latency}
+\label{tab:hil_results}
+\small
+\begin{tabular}{P{0.4\columnwidth} P{0.2\columnwidth} P{0.2\columnwidth}}
+\toprule
+ & \textbf{Variant A (orig.)} & \textbf{Variant B (REQ-7)} \\
+\midrule
+Activations $N$ & 200 & 200 \\
+Min latency (scans) & 2 & 1 \\
+Mean latency (scans) & 2.0 & 1.0 \\
+Max latency (scans) & 2 & 1 \\
+Std.\ dev.\ (scans) & 0.05 & 0.05 \\
+Mean latency (ms, at 10 ms/scan) & 20 & 10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Interpretation}
+ The measured separation of the two latency distributions by one scan cycle confirms that the permissive window identified at Layer~2 is not a model-checking artifact but a property of scan-cycle execution that any faithful implementation of the original six requirements inherits. Both variants remain well within the 100~ms bound of FR-6 on the test platform; the value of the refinement lies in removing a systematic, specification-induced latency component from the response-time budget, and the value of the experiment lies in closing the loop between the formal model and physical execution.
+
+\section{Cross-Layer Alignment Analysis}
+\label{sec:crosslayer}
+
+Each layer captures aspects of the normative intent that the others miss (Table~\ref{tab:crosslayer}). The critical observation is not that multiple tools are better than one -- that would be unsurprising -- but that the \emph{class of error} addressed at each layer is structurally invisible to the others, and that the boundaries are now empirically delineated. Satisfiability-based consistency analysis cannot detect the permissive window because it quantifies existentially over traces (Section~\ref{sec:fret_boundary}); realizability analysis can detect it, but only when the violated invariant has been anticipated and stated. Behavioral reachability analysis detects it without anticipation, producing a counterexample, but operates on abstract cycles and cannot check physical deadlines. Time-bounded analysis verifies the 100~ms deadline and realizes the fix by construction, but could not have discovered the window, because in the timed model the hazard was already eliminated by design. Hardware measurement, finally, validates that the model's execution semantics match the platform -- something no model-level analysis can establish.
+
+\begin{table*}[t]
+\centering
+\caption{Cross-layer analysis: each layer detects error classes that the others miss.}
+\label{tab:crosslayer}
+\small
+\begin{tabular}{P{0.14\textwidth} P{0.17\textwidth} P{0.24\textwidth} P{0.24\textwidth} P{0.09\textwidth}}
+\toprule
+\textbf{Layer} & \textbf{Correctness Criterion} & \textbf{Error Class Detected} & \textbf{Error Class Missed} & \textbf{Instantiation} \\
+\midrule
+Layer~1: Requirement-level & Consistency; realizability & Contradictions, vacuity; unrealizable sets (if invariant stated, Sec.~\ref{sec:fret_boundary}) & Compositional hazards against unstated invariants; timing violations & FRET \\
+\midrule
+Layer~2: Discrete behavioral & No unsafe reachable state & Compositional hazards (e.g., one-cycle permissive window), deadlocks; no anticipation of invariant class needed beyond stating it & Timing deadline violations; platform conformance & NuSMV \\
+\midrule
+Layer~3: Temporal / physical & All deadlines met & Timing bound violations & Encoding-level hazards (here: prevented by design, not discovered); platform conformance & UPPAAL \\
+\midrule
+Layer~4: Physical realization & Measured behavior matches model & Model--platform mismatches; unmodeled latency components & Unexercised behaviors (testing, not proof) & HIL on PLC \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\noindent\textit{Key observation:} the one-cycle permissive window was invisible to satisfiability analysis at Layer~1, detectable by realizability analysis only once SAFETY-1 was stated, exposed with a counterexample at Layer~2, prevented by design at Layer~3, and measured on hardware at Layer~4.
+\end{table*}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Significance of Findings}
+
+\paragraph{Representational adequacy versus logical consistency}
+Logically consistent requirements can be representationally inadequate when they leave causal dependencies implicit. The permissive window is an instance of cross-layer misalignment: the requirement set is consistent and (without SAFETY-1) realizable at Layer~1, yet every faithful synchronous implementation violates the designer's intended invariant at Layer~2. The gap arises because next-state encoding ($\X$) expresses temporal succession, not causal immediacy -- a distinction long understood in synchronous-language semantics \cite{Esterel} that resurfaces, in a practically consequential form, whenever controlled-natural-language requirements of the form ``shall at the next timepoint satisfy'' are composed under scan-cycle semantics.
+
+\paragraph{Where the detection boundary lies}
+The empirical study of Section~\ref{sec:fret_boundary} makes the division of labor precise. Requirements-level analysis answers questions about the requirement set (consistency, realizability) and can expose the window only when the endangered invariant is explicitly stated and the input/output partition declared. Behavioral model checking answers questions about the composed closed-loop model and exposes the window against a generic invariant, with a counterexample, at the cost of committing to an execution model. Neither subsumes the other; treating them as redundant alternatives misses what each uniquely provides.
+
+\paragraph{Response-time budgets, not bound violations}
+We deliberately do not claim that the one-cycle window violates ISO~13850: FR-6 grants 100~ms, and a single scan cycle consumes only a fraction of it. The engineering significance is that the window is a \emph{systematic, specification-induced} component of response latency -- it shifts the whole latency distribution by one cycle on every activation, as confirmed by measurement in Section~\ref{sec:hil}. In a certified design, the 100~ms budget is consumed by input filtering, logic, output switching, contactor drop-out, and braking; a latency component that is invisible at the requirements level and inherited by every faithful implementation is exactly the kind of contribution a response-time budget must make explicit. The refinement REQ-7 removes it at zero hardware cost.
+
+\paragraph{Systematic translation with traceability}
+The pipeline provides complete traceability from ISO clause to verified property and to measured hardware behavior (Table~\ref{tab:traceabilityMatrix}), addressing a practical need in safety certification. FRETish serves as an effective intermediate representation: readable by safety engineers, yet sufficiently structured for automatic translation to temporal logic.
+
+\subsection{Practical Implications}
+For AGV developers, the key lesson is that single-layer verification is insufficient for safety-critical functions: requirements formalization catches contradictions and -- given explicitly stated invariants -- unrealizable specifications early; behavioral verification reveals compositional hazards without requiring them to be anticipated; timing verification establishes deadline conformance; and hardware measurement validates the execution-model assumptions underlying all of the above. For safety certification, the pipeline yields traceable verification evidence, formal counterexample traces for hazard analysis, and measured latency data suitable for inclusion in a safety case.
+
+\subsection{Threats to Validity and Limitations}
+This article does not claim ISO certification of any implementation; the goal is to demonstrate the methodology and to delineate what each verification layer can detect.
+
+Regarding \emph{internal validity}, the models abstract real AGV hardware; the HIL platform is a general-purpose PLC, and absolute latency values will differ on safety-rated hardware with different scan and I/O characteristics (the one-cycle \emph{difference} between variants, however, is a property of scan-cycle execution as such). Tool versions: FRET 3.0 (kind2 v0.8.3), NuSMV 2.6.0, UPPAAL 4.1.26, TIA Portal 17 Update 6 (S7-1200 firmware V2.2); translation of the standards involves interpretation, mitigated by consulting the standards documentation and validating against typical AGV control architectures.
+
+Regarding \emph{external validity}, results are based on a single safety function (emergency stop) in a single domain (AGVs). Emergency stop is, however, representative of safety functions that combine logical, behavioral, and timing requirements, and the methodology is tool-agnostic: alternative instantiations (e.g., Spin at Layer~2, or timed logics such as MITL at the requirements level) are possible.
+
+Each tool also has specific limitations. FRET cannot express all temporal patterns (e.g., complex counting) and does not support real-time constraints in its LTL backend. NuSMV operates on abstract cycles and is subject to state explosion for large systems. UPPAAL requires more manual modeling effort, and our tick-quantized model of the scan cycle -- while faithful to the platform's execution discipline -- fixes the scan period as a parameter rather than deriving it from a hardware model.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This article presented a four-layer methodology for formalizing, verifying, and physically validating AGV emergency stop requirements derived from ISO~13850 and ISO~3691-4: requirements-level analysis with FRET, behavioral model checking with NuSMV, real-time verification with UPPAAL, and hardware-in-the-loop measurement on a physical PLC, with full traceability from ISO clause to verified property to measured behavior.
+
+The central case-study finding is a one-cycle permissive window in which the AGV could continue running for one controller scan cycle after emergency stop activation, although every individual formalized requirement was satisfied. We characterized the window formally, with explicit assumptions under which it necessarily arises; we delineated empirically which requirements-level analyses can and cannot expose it; we eliminated it through a requirements refinement realized by construction in the timed model; and we reproduced and measured the predicted one-cycle latency difference on physical hardware.
+
+The broader principle is that logical consistency of a formal specification is necessary but not sufficient for safety. Representational adequacy -- the faithfulness with which a specification captures the causal, temporal, and behavioral dimensions of the normative intent under the concrete execution semantics -- is the deeper challenge, and it is a cross-layer property: no single analysis in our study could both discover and discharge the hazard, and only physical measurement could confirm that the models' execution semantics match the platform. Safety assurance demands the alignment of all layers.
+
+Future work will extend the methodology to additional AGV safety functions (personnel detection, collision avoidance) and larger industrial case studies, validate the approach on safety-rated PLC architectures per ISO~13849-1, and explore integration with implementation-level artifacts such as PLC code generation and runtime monitoring.
+
+\section*{Data Availability (Artifact)}
+\label{sec:artifact}
+All models (FRET project export, NuSMV models for the original and refined logic, UPPAAL model), verification logs, the IEC~61131-3 programs for both HIL variants, measurement scripts, and raw latency data are available at https://github.com/michal-skupny/agv-estop-verification, archived with a DOI at https://doi.org/10.5281/zenodo.10658024. A container image with pinned tool versions and a script reproducing all verification results is included.
+
+\begin{thebibliography}{00}
+
+ 
+\bibitem{ISO13850}
+\emph{ISO 13849-1:2023 -- Safety of machinery -- Emergency stop function -- Principles for design}, International Organization for Standardization, Geneva, Switzerland, 2015.
+ 
+\bibitem{ISO3691-4}
+\emph{ISO 3691-4:2020 -- Industrial trucks -- Safety requirements and verification -- Part 4: Driverless industrial trucks and their systems}, International Organization for Standardization, Geneva, Switzerland, 2020.
+ 
+\bibitem{IEC61508}
+\emph{Functional Safety of Electrical/Electronic/Programmable Electronic Safety-Related Systems}, IEC 62061:2021, International Electrotechnical Commission, Geneva, Switzerland, 2010.
+ 
+\bibitem{Giannakopoulou2018FRET}
+D. Giannakopoulou, I. Perez, and C. Munoz, ``Formal requirements elicitation with FRET,'' NASA Ames Research Center, Moffett Field, CA, USA, Tech. Memo. NASA/TM--2018-220043, 2018.
+ 
+\bibitem{Giannakopoulou2019FRET}
+D. Giannakopoulou and E. Ferrante, ``FRET: A tool for formal requirements elicitation and specification,'' in \emph{Proc. 34th IEEE/ACM Int. Conf. Automated Software Engineering (ASE)}, San Diego, CA, USA, 2019.
+ 
+\bibitem{Cimatti2002NuSMV}
+A. Cimatti \emph{et al.}, ``NuSMV 2: An open-source tool for symbolic model checking,'' in \emph{Proc. 14th Int. Conf. Computer Aided Verification (CAV)}, LNCS, vol. 2404, Copenhagen, Denmark, 2002, pp. 359--364.
+ 
+\bibitem{Behrmann2006UPPAAL}
+G. Behrmann, A. David, and K. G. Larsen, ``A tutorial on UPPAAL 4.0,'' Dept. Comput. Sci., Aalborg Univ., Aalborg, Denmark, 2006.
+ 
+\bibitem{KressGazit2009}
+H. Kress-Gazit, G. E. Fainekos, and G. J. Pappas, ``Temporal-logic-based reactive mission and motion planning,'' \emph{IEEE Trans. Robot.}, vol. 25, no. 6, pp. 1370--1381, Dec. 2009.
+ 
+\bibitem{Webster2021}
+M. Webster, A. Abate, and L. Laurenti, ``Formal methods for the certification of autonomous systems,'' \emph{IEEE Computer}, vol. 54, no. 5, pp. 18--28, May 2021.
+ 
+\bibitem{Bjorner1996}
+S. Owre, S. Rajan, J. M. Rushby, N. Shankar, and M. K. Srivas, ``PVS: Combining specification, proof checking, and model checking,'' in \emph{Proc. 8th Int. Conf. Computer Aided Verification (CAV)}, LNCS, vol. 1102, New Brunswick, NJ, USA, 1996, pp. 411--414.
+ 
+\bibitem{Rushby}
+J. Rushby, ``Formal methods and the certification of critical systems,'' Comput. Sci. Lab., SRI International, Menlo Park, CA, USA, Tech. Rep. CSL-93-7, 1993.
+ 
+\bibitem{Darvas}
+D. Darvas, B. Fern\'{a}ndez Adiego, and E. Blanco, ``Formal verification of PLC programs using the B method,'' CERN, Geneva, Switzerland, Rep. CERN-ACC-NOTE-2013-0040, 2013.
+ 
+\bibitem{Biallas}
+S. Biallas, J. Brauer, and S. Kowalewski, ``Counterexample-guided abstraction refinement for PLCs,'' Embedded Software Lab., RWTH Aachen Univ., Aachen, Germany, 2013.
+ 
+\bibitem{PLCverify}
+D. L\'{o}pez-Miguel, J.-C. Tournier, and B. Fern\'{a}ndez, ``PLCverif: Status of a formal verification tool for programmable logic controllers,'' in \emph{Proc. 18th Int. Conf. Accelerator and Large Experimental Physics Control Systems (ICALEPCS)}, 2022.
+ 
+\bibitem{Esterel}
+G. Berry and G. Gonthier, ``The ESTEREL synchronous programming language: Design, semantics, implementation,'' \emph{Sci. Comput. Program.}, vol. 19, no. 2, pp. 87--152, 1992.
+ 
+\bibitem{Halbwachs}
+N. Halbwachs, P. Caspi, P. Raymond, and D. Pilaud, ``The synchronous data flow programming language LUSTRE,'' \emph{Proc. IEEE}, vol. 79, no. 9, pp. 1305--1320, Sep. 1991.
+ 
+
+\end{thebibliography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{MSkupny.jpg}}]{Michał Skupny} received the B.S. and M.S. degrees in control engineering and robotics from Poznan University of Technology, Poland, in 2015 and 2016 respectively. He is currently a Teaching Assistant with Poznan University of Technology as well as an automation practitioner with over ten years of industrial experience in PLC-based control systems and industrial automation. His professional work focuses on the design, implementation, and commissioning of control systems for industrial processes, with particular emphasis on reliability and functional safety. His research interests include safety engineering methods, safety-related control systems, and the automatic verification and validation of safety functions in automated systems. He combines practical industrial expertise with research activities aimed at improving the robustness and safety of modern automation solutions. 
+\end{IEEEbiography}
+
+\EOD
+
+\end{document}
