@@ -86,7 +86,6 @@ CC-BY-4.0 (Creative Commons Attribution 4.0 International)
 ## Authors
 
 - **Michal Skupny** — Poznan University of Technology
-- **Joanna Piasek-Skupna** — Poznan University of Technology
 
 ---
 
