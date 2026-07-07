@@ -161,7 +161,6 @@ This work includes the following materials, all licensed under CC-BY-4.0:
 - Documentation and guides
 
 Attribution should include:
-  Skupny, M., & Piasek-Skupna, J. (2026). Multi-Layer Formal Verification 
-  of AGV Emergency Stop Logic. IEEE Access.
+  Skupny, M., (2026). From Normative Text to Verified Control Logic: Multi-Layer Formal Verification and Hardware-in-the-Loop Validation of an AGV Emergency Stop System.
 
 Contact: m.skupny@put.poznan.pl
