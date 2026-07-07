@@ -1,0 +1,588 @@
+{
+    "projectName": "test_run",
+    "systemComponents": [
+        {
+            "name": "safetyController",
+            "comments": "",
+            "monolithic": {
+                "solver": "kind2",
+                "time": "0.659sec",
+                "diagnosisStatus": "",
+                "diagnosisReport": "",
+                "error": "",
+                "result": "REALIZABLE",
+                "traceInfo": null
+            },
+            "compositional": {
+                "result": "UNCHECKED",
+                "connectedComponents": [
+                    {
+                        "ccName": "cc0",
+                        "result": "UNCHECKED",
+                        "time": "",
+                        "requirements": [
+                            "001_Auto&HandModesPermissionOK",
+                            "005_WaitingForRunningState",
+                            "006_stopRunning",
+                            "007_ContiuneRunning",
+                            "002_Auto&HandModesPermissionNOK",
+                            "003_Reset_ESTOP",
+                            "004_eStop_Activated"
+                        ],
+                        "diagnosisStatus": "",
+                        "diagnosisReport": "",
+                        "error": ""
+                    }
+                ],
+                "error": ""
+            },
+            "requirements": [
+                {
+                    "reqid": "001_Auto&HandModesPermissionOK",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "",
+                    "status": "completed",
+                    "fulltext": "if eStopPermissionOk, safetyController shall at the next timepoint satisfy (AutoModeAvaliable & HandModeAvaliable)",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "eStopPermissionOk",
+                            "AutoModeAvaliable",
+                            "HandModeAvaliable"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(eStopPermissionOk)",
+                        "regular_condition": "(eStopPermissionOk)",
+                        "conditionTextRange": [
+                            0,
+                            20
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            22,
+                            37
+                        ],
+                        "timingTextRange": [
+                            45,
+                            65
+                        ],
+                        "post_condition": "(( AutoModeAvaliable & HandModeAvaliable ))",
+                        "responseTextRange": [
+                            67,
+                            113
+                        ],
+                        "diagramVariables": "TC = <b><i>(eStopPermissionOk)</i></b>, Response = <b><i>(( AutoModeAvaliable & HandModeAvaliable ))</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(eStopPermissionOk)</i></b> is true and any point in the interval where <b><i>(eStopPermissionOk)</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "eStopPermissionOk",
+                        "regular_condition_unexp_ft": "eStopPermissionOk",
+                        "regular_condition_unexp_pctl": "eStopPermissionOk",
+                        "regular_condition_SMV_pt": "eStopPermissionOk",
+                        "regular_condition_SMV_ft": "eStopPermissionOk",
+                        "regular_condition_PRISM_pctl": "eStopPermissionOk",
+                        "post_condition_unexp_pt": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "post_condition_unexp_ft": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "post_condition_unexp_pctl": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "post_condition_SMV_pt": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "post_condition_SMV_ft": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "post_condition_PRISM_pctl": "(AutoModeAvaliable & HandModeAvaliable)",
+                        "ft": "((LAST V (((! eStopPermissionOk) & ((! LAST) & (X eStopPermissionOk))) -> (X (LAST | (X (AutoModeAvaliable & HandModeAvaliable)))))) & (eStopPermissionOk -> (LAST | (X (AutoModeAvaliable & HandModeAvaliable)))))",
+                        "pt": "(H ((Y (eStopPermissionOk & (Z (! eStopPermissionOk)))) -> ((AutoModeAvaliable & HandModeAvaliable) | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! eStopPermissionOk) & (X eStopPermissionOk)) => (X (P>=1[(LAST | (X (AutoModeAvaliable & HandModeAvaliable)))])))) & (eStopPermissionOk => (P>=1[(LAST | (X (AutoModeAvaliable & HandModeAvaliable)))])))]",
+                        "ptExpanded": "(H ((Y (eStopPermissionOk & (Z (! eStopPermissionOk)))) -> ((AutoModeAvaliable & HandModeAvaliable) | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre((eStopPermissionOk and ZtoPre(not (eStopPermissionOk)))) => ((AutoModeAvaliable and HandModeAvaliable) or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V (((! eStopPermissionOk) & ((! LAST) & (X eStopPermissionOk))) -> (X (LAST | (X (AutoModeAvaliable & HandModeAvaliable)))))) & (eStopPermissionOk -> (LAST | (X (AutoModeAvaliable & HandModeAvaliable)))))",
+                        "pctlExpanded": "P>=1[((G (((! eStopPermissionOk) & (X eStopPermissionOk)) => (X (P>=1[(false | (X (AutoModeAvaliable & HandModeAvaliable)))])))) & (eStopPermissionOk => (P>=1[(false | (X (AutoModeAvaliable & HandModeAvaliable)))])))]",
+                        "ftInfAUExpanded": "((G (((! eStopPermissionOk) & (X eStopPermissionOk)) -> (X (X (AutoModeAvaliable & HandModeAvaliable))))) & (eStopPermissionOk -> (X (AutoModeAvaliable & HandModeAvaliable))))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "0072a0f0-dce1-11f0-998f-f39367714d53",
+                    "_rev": "5-4c9af108eb5a8dcf33a13e6ceac5d455"
+                },
+                {
+                    "reqid": "005_WaitingForRunningState",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "If the emergency stop is no longer active and the start button is not pressed, the AGV shall not enter the running state. The AGV shall enter the running state only when the emergency stop is active and the start button is pressed.",
+                    "status": "completed",
+                    "fulltext": "if (eStopPermissionOk &  !startButton) safetyController shall at the next timepoint satisfy (!continueRunning)",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "eStopPermissionOk",
+                            "startButton",
+                            "continueRunning"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(( eStopPermissionOk & ! startButton ))",
+                        "regular_condition": "(( eStopPermissionOk & ! startButton ))",
+                        "conditionTextRange": [
+                            0,
+                            37
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            39,
+                            54
+                        ],
+                        "timingTextRange": [
+                            62,
+                            82
+                        ],
+                        "post_condition": "(( ! continueRunning ))",
+                        "responseTextRange": [
+                            84,
+                            109
+                        ],
+                        "diagramVariables": "TC = <b><i>(( eStopPermissionOk & ! startButton ))</i></b>, Response = <b><i>(( ! continueRunning ))</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(( eStopPermissionOk & ! startButton ))</i></b> is true and any point in the interval where <b><i>(( eStopPermissionOk & ! startButton ))</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(eStopPermissionOk & (! startButton))",
+                        "regular_condition_unexp_ft": "(eStopPermissionOk & (! startButton))",
+                        "regular_condition_unexp_pctl": "(eStopPermissionOk & (! startButton))",
+                        "regular_condition_SMV_pt": "(eStopPermissionOk & (! startButton))",
+                        "regular_condition_SMV_ft": "(eStopPermissionOk & (! startButton))",
+                        "regular_condition_PRISM_pctl": "(eStopPermissionOk & (! startButton))",
+                        "post_condition_unexp_pt": "(! continueRunning)",
+                        "post_condition_unexp_ft": "(! continueRunning)",
+                        "post_condition_unexp_pctl": "(! continueRunning)",
+                        "post_condition_SMV_pt": "(! continueRunning)",
+                        "post_condition_SMV_ft": "(! continueRunning)",
+                        "post_condition_PRISM_pctl": "(! continueRunning)",
+                        "ft": "((LAST V (((! (eStopPermissionOk & (! startButton))) & ((! LAST) & (X (eStopPermissionOk & (! startButton))))) -> (X (LAST | (X (! continueRunning)))))) & ((eStopPermissionOk & (! startButton)) -> (LAST | (X (! continueRunning)))))",
+                        "pt": "(H ((Y ((eStopPermissionOk & (! startButton)) & (Z (! (eStopPermissionOk & (! startButton)))))) -> ((! continueRunning) | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (eStopPermissionOk & (! startButton))) & (X (eStopPermissionOk & (! startButton)))) => (X (P>=1[(LAST | (X (! continueRunning)))])))) & ((eStopPermissionOk & (! startButton)) => (P>=1[(LAST | (X (! continueRunning)))])))]",
+                        "ptExpanded": "(H ((Y ((eStopPermissionOk & (! startButton)) & (Z (! (eStopPermissionOk & (! startButton)))))) -> ((! continueRunning) | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre(((eStopPermissionOk and not (startButton)) and ZtoPre(not ((eStopPermissionOk and not (startButton)))))) => (not (continueRunning) or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V (((! (eStopPermissionOk & (! startButton))) & ((! LAST) & (X (eStopPermissionOk & (! startButton))))) -> (X (LAST | (X (! continueRunning)))))) & ((eStopPermissionOk & (! startButton)) -> (LAST | (X (! continueRunning)))))",
+                        "pctlExpanded": "P>=1[((G (((! (eStopPermissionOk & (! startButton))) & (X (eStopPermissionOk & (! startButton)))) => (X (P>=1[(false | (X (! continueRunning)))])))) & ((eStopPermissionOk & (! startButton)) => (P>=1[(false | (X (! continueRunning)))])))]",
+                        "ftInfAUExpanded": "((G (((! (eStopPermissionOk & (! startButton))) & (X (eStopPermissionOk & (! startButton)))) -> (X (X (! continueRunning))))) & ((eStopPermissionOk & (! startButton)) -> (X (! continueRunning))))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "3789ccb0-dce3-11f0-998f-f39367714d53",
+                    "_rev": "5-22d9c70ca42a5a8492c4af9ac0d399d2"
+                },
+                {
+                    "reqid": "006_stopRunning",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "",
+                    "status": "completed",
+                    "fulltext": "if !eStopPermissionOk safetyController shall at the next timepoint satisfy (!continueRunning)",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "eStopPermissionOk",
+                            "continueRunning"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(! eStopPermissionOk)",
+                        "regular_condition": "(! eStopPermissionOk)",
+                        "conditionTextRange": [
+                            0,
+                            20
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            22,
+                            37
+                        ],
+                        "timingTextRange": [
+                            45,
+                            65
+                        ],
+                        "post_condition": "(( ! continueRunning ))",
+                        "responseTextRange": [
+                            67,
+                            92
+                        ],
+                        "diagramVariables": "TC = <b><i>(! eStopPermissionOk)</i></b>, Response = <b><i>(( ! continueRunning ))</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(! eStopPermissionOk)</i></b> is true and any point in the interval where <b><i>(! eStopPermissionOk)</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(! eStopPermissionOk)",
+                        "regular_condition_unexp_ft": "(! eStopPermissionOk)",
+                        "regular_condition_unexp_pctl": "(! eStopPermissionOk)",
+                        "regular_condition_SMV_pt": "(! eStopPermissionOk)",
+                        "regular_condition_SMV_ft": "(! eStopPermissionOk)",
+                        "regular_condition_PRISM_pctl": "(! eStopPermissionOk)",
+                        "post_condition_unexp_pt": "(! continueRunning)",
+                        "post_condition_unexp_ft": "(! continueRunning)",
+                        "post_condition_unexp_pctl": "(! continueRunning)",
+                        "post_condition_SMV_pt": "(! continueRunning)",
+                        "post_condition_SMV_ft": "(! continueRunning)",
+                        "post_condition_PRISM_pctl": "(! continueRunning)",
+                        "ft": "((LAST V (((! (! eStopPermissionOk)) & ((! LAST) & (X (! eStopPermissionOk)))) -> (X (LAST | (X (! continueRunning)))))) & ((! eStopPermissionOk) -> (LAST | (X (! continueRunning)))))",
+                        "pt": "(H ((Y ((! eStopPermissionOk) & (Z (! (! eStopPermissionOk))))) -> ((! continueRunning) | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (! eStopPermissionOk)) & (X (! eStopPermissionOk))) => (X (P>=1[(LAST | (X (! continueRunning)))])))) & ((! eStopPermissionOk) => (P>=1[(LAST | (X (! continueRunning)))])))]",
+                        "ptExpanded": "(H ((Y ((! eStopPermissionOk) & (Z eStopPermissionOk))) -> ((! continueRunning) | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre((not (eStopPermissionOk) and ZtoPre(eStopPermissionOk))) => (not (continueRunning) or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V ((eStopPermissionOk & ((! LAST) & (X (! eStopPermissionOk)))) -> (X (LAST | (X (! continueRunning)))))) & ((! eStopPermissionOk) -> (LAST | (X (! continueRunning)))))",
+                        "pctlExpanded": "P>=1[((G (((! (! eStopPermissionOk)) & (X (! eStopPermissionOk))) => (X (P>=1[(false | (X (! continueRunning)))])))) & ((! eStopPermissionOk) => (P>=1[(false | (X (! continueRunning)))])))]",
+                        "ftInfAUExpanded": "((G ((eStopPermissionOk & (X (! eStopPermissionOk))) -> (X (X (! continueRunning))))) & ((! eStopPermissionOk) -> (X (! continueRunning))))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "6be208b0-df18-11f0-bc92-6fd291141713",
+                    "_rev": "3-bb820c54eeb019254894f0f7a185d145"
+                },
+                {
+                    "reqid": "007_ContiuneRunning",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "",
+                    "status": "completed",
+                    "fulltext": "if (eStopPermissionOk & startButton) safetyController shall at the next timepoint satisfy continueRunning",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "eStopPermissionOk",
+                            "startButton",
+                            "continueRunning"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(( eStopPermissionOk & startButton ))",
+                        "regular_condition": "(( eStopPermissionOk & startButton ))",
+                        "conditionTextRange": [
+                            0,
+                            35
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            37,
+                            52
+                        ],
+                        "timingTextRange": [
+                            60,
+                            80
+                        ],
+                        "post_condition": "(continueRunning)",
+                        "responseTextRange": [
+                            82,
+                            104
+                        ],
+                        "diagramVariables": "TC = <b><i>(( eStopPermissionOk & startButton ))</i></b>, Response = <b><i>(continueRunning)</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(( eStopPermissionOk & startButton ))</i></b> is true and any point in the interval where <b><i>(( eStopPermissionOk & startButton ))</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(eStopPermissionOk & startButton)",
+                        "regular_condition_unexp_ft": "(eStopPermissionOk & startButton)",
+                        "regular_condition_unexp_pctl": "(eStopPermissionOk & startButton)",
+                        "regular_condition_SMV_pt": "(eStopPermissionOk & startButton)",
+                        "regular_condition_SMV_ft": "(eStopPermissionOk & startButton)",
+                        "regular_condition_PRISM_pctl": "(eStopPermissionOk & startButton)",
+                        "post_condition_unexp_pt": "continueRunning",
+                        "post_condition_unexp_ft": "continueRunning",
+                        "post_condition_unexp_pctl": "continueRunning",
+                        "post_condition_SMV_pt": "continueRunning",
+                        "post_condition_SMV_ft": "continueRunning",
+                        "post_condition_PRISM_pctl": "continueRunning",
+                        "ft": "((LAST V (((! (eStopPermissionOk & startButton)) & ((! LAST) & (X (eStopPermissionOk & startButton)))) -> (X (LAST | (X continueRunning))))) & ((eStopPermissionOk & startButton) -> (LAST | (X continueRunning))))",
+                        "pt": "(H ((Y ((eStopPermissionOk & startButton) & (Z (! (eStopPermissionOk & startButton))))) -> (continueRunning | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (eStopPermissionOk & startButton)) & (X (eStopPermissionOk & startButton))) => (X (P>=1[(LAST | (X continueRunning))])))) & ((eStopPermissionOk & startButton) => (P>=1[(LAST | (X continueRunning))])))]",
+                        "ptExpanded": "(H ((Y ((eStopPermissionOk & startButton) & (Z (! (eStopPermissionOk & startButton))))) -> (continueRunning | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre(((eStopPermissionOk and startButton) and ZtoPre(not ((eStopPermissionOk and startButton))))) => (continueRunning or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V (((! (eStopPermissionOk & startButton)) & ((! LAST) & (X (eStopPermissionOk & startButton)))) -> (X (LAST | (X continueRunning))))) & ((eStopPermissionOk & startButton) -> (LAST | (X continueRunning))))",
+                        "pctlExpanded": "P>=1[((G (((! (eStopPermissionOk & startButton)) & (X (eStopPermissionOk & startButton))) => (X (P>=1[(false | (X continueRunning))])))) & ((eStopPermissionOk & startButton) => (P>=1[(false | (X continueRunning))])))]",
+                        "ftInfAUExpanded": "((G (((! (eStopPermissionOk & startButton)) & (X (eStopPermissionOk & startButton))) -> (X (X continueRunning)))) & ((eStopPermissionOk & startButton) -> (X continueRunning)))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "9d790dc0-df1c-11f0-bc92-6fd291141713",
+                    "_rev": "1-b051b23bc3c4f6a270a5f9e5b86c2a28"
+                },
+                {
+                    "reqid": "002_Auto&HandModesPermissionNOK",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "",
+                    "status": "completed",
+                    "fulltext": "if !eStopPermissionOk, safetyController shall at the next timepoint satisfy (!AutoModeAvaliable & !HandModeAvaliable)",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "eStopPermissionOk",
+                            "AutoModeAvaliable",
+                            "HandModeAvaliable"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(! eStopPermissionOk)",
+                        "regular_condition": "(! eStopPermissionOk)",
+                        "conditionTextRange": [
+                            0,
+                            21
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            23,
+                            38
+                        ],
+                        "timingTextRange": [
+                            46,
+                            66
+                        ],
+                        "post_condition": "(( ! AutoModeAvaliable & ! HandModeAvaliable ))",
+                        "responseTextRange": [
+                            68,
+                            116
+                        ],
+                        "diagramVariables": "TC = <b><i>(! eStopPermissionOk)</i></b>, Response = <b><i>(( ! AutoModeAvaliable & ! HandModeAvaliable ))</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(! eStopPermissionOk)</i></b> is true and any point in the interval where <b><i>(! eStopPermissionOk)</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(! eStopPermissionOk)",
+                        "regular_condition_unexp_ft": "(! eStopPermissionOk)",
+                        "regular_condition_unexp_pctl": "(! eStopPermissionOk)",
+                        "regular_condition_SMV_pt": "(! eStopPermissionOk)",
+                        "regular_condition_SMV_ft": "(! eStopPermissionOk)",
+                        "regular_condition_PRISM_pctl": "(! eStopPermissionOk)",
+                        "post_condition_unexp_pt": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "post_condition_unexp_ft": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "post_condition_unexp_pctl": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "post_condition_SMV_pt": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "post_condition_SMV_ft": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "post_condition_PRISM_pctl": "((! AutoModeAvaliable) & (! HandModeAvaliable))",
+                        "ft": "((LAST V (((! (! eStopPermissionOk)) & ((! LAST) & (X (! eStopPermissionOk)))) -> (X (LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))))) & ((! eStopPermissionOk) -> (LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))))",
+                        "pt": "(H ((Y ((! eStopPermissionOk) & (Z (! (! eStopPermissionOk))))) -> (((! AutoModeAvaliable) & (! HandModeAvaliable)) | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (! eStopPermissionOk)) & (X (! eStopPermissionOk))) => (X (P>=1[(LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))])))) & ((! eStopPermissionOk) => (P>=1[(LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))])))]",
+                        "ptExpanded": "(H ((Y ((! eStopPermissionOk) & (Z eStopPermissionOk))) -> (((! AutoModeAvaliable) & (! HandModeAvaliable)) | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre((not (eStopPermissionOk) and ZtoPre(eStopPermissionOk))) => ((not (AutoModeAvaliable) and not (HandModeAvaliable)) or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V ((eStopPermissionOk & ((! LAST) & (X (! eStopPermissionOk)))) -> (X (LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))))) & ((! eStopPermissionOk) -> (LAST | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))))",
+                        "pctlExpanded": "P>=1[((G (((! (! eStopPermissionOk)) & (X (! eStopPermissionOk))) => (X (P>=1[(false | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))])))) & ((! eStopPermissionOk) => (P>=1[(false | (X ((! AutoModeAvaliable) & (! HandModeAvaliable))))])))]",
+                        "ftInfAUExpanded": "((G ((eStopPermissionOk & (X (! eStopPermissionOk))) -> (X (X ((! AutoModeAvaliable) & (! HandModeAvaliable)))))) & ((! eStopPermissionOk) -> (X ((! AutoModeAvaliable) & (! HandModeAvaliable)))))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "b6c69ce0-dce0-11f0-998f-f39367714d53",
+                    "_rev": "7-0ba5b1cc403ba35bae6b20c79ad4a72b"
+                },
+                {
+                    "reqid": "003_Reset_ESTOP",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "The emergency stop signal (eStopPermissionOk) shall be active if and only if the reset button is pressed. ",
+                    "status": "completed",
+                    "fulltext": " if (emergency_stop_button & reset_button)  the  safetyController  shall  at the next timepoint  satisfy  eStopPermissionOk ",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "emergency_stop_button",
+                            "reset_button",
+                            "eStopPermissionOk"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(( emergency_stop_button & reset_button ))",
+                        "regular_condition": "(( emergency_stop_button & reset_button ))",
+                        "conditionTextRange": [
+                            0,
+                            40
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            43,
+                            63
+                        ],
+                        "timingTextRange": [
+                            73,
+                            93
+                        ],
+                        "post_condition": "(eStopPermissionOk)",
+                        "responseTextRange": [
+                            96,
+                            121
+                        ],
+                        "diagramVariables": "TC = <b><i>(( emergency_stop_button & reset_button ))</i></b>, Response = <b><i>(eStopPermissionOk)</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(( emergency_stop_button & reset_button ))</i></b> is true and any point in the interval where <b><i>(( emergency_stop_button & reset_button ))</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(emergency_stop_button & reset_button)",
+                        "regular_condition_unexp_ft": "(emergency_stop_button & reset_button)",
+                        "regular_condition_unexp_pctl": "(emergency_stop_button & reset_button)",
+                        "regular_condition_SMV_pt": "(emergency_stop_button & reset_button)",
+                        "regular_condition_SMV_ft": "(emergency_stop_button & reset_button)",
+                        "regular_condition_PRISM_pctl": "(emergency_stop_button & reset_button)",
+                        "post_condition_unexp_pt": "eStopPermissionOk",
+                        "post_condition_unexp_ft": "eStopPermissionOk",
+                        "post_condition_unexp_pctl": "eStopPermissionOk",
+                        "post_condition_SMV_pt": "eStopPermissionOk",
+                        "post_condition_SMV_ft": "eStopPermissionOk",
+                        "post_condition_PRISM_pctl": "eStopPermissionOk",
+                        "ft": "((LAST V (((! (emergency_stop_button & reset_button)) & ((! LAST) & (X (emergency_stop_button & reset_button)))) -> (X (LAST | (X eStopPermissionOk))))) & ((emergency_stop_button & reset_button) -> (LAST | (X eStopPermissionOk))))",
+                        "pt": "(H ((Y ((emergency_stop_button & reset_button) & (Z (! (emergency_stop_button & reset_button))))) -> (eStopPermissionOk | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (emergency_stop_button & reset_button)) & (X (emergency_stop_button & reset_button))) => (X (P>=1[(LAST | (X eStopPermissionOk))])))) & ((emergency_stop_button & reset_button) => (P>=1[(LAST | (X eStopPermissionOk))])))]",
+                        "ptExpanded": "(H ((Y ((emergency_stop_button & reset_button) & (Z (! (emergency_stop_button & reset_button))))) -> (eStopPermissionOk | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre(((emergency_stop_button and reset_button) and ZtoPre(not ((emergency_stop_button and reset_button))))) => (eStopPermissionOk or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V (((! (emergency_stop_button & reset_button)) & ((! LAST) & (X (emergency_stop_button & reset_button)))) -> (X (LAST | (X eStopPermissionOk))))) & ((emergency_stop_button & reset_button) -> (LAST | (X eStopPermissionOk))))",
+                        "pctlExpanded": "P>=1[((G (((! (emergency_stop_button & reset_button)) & (X (emergency_stop_button & reset_button))) => (X (P>=1[(false | (X eStopPermissionOk))])))) & ((emergency_stop_button & reset_button) => (P>=1[(false | (X eStopPermissionOk))])))]",
+                        "ftInfAUExpanded": "((G (((! (emergency_stop_button & reset_button)) & (X (emergency_stop_button & reset_button))) -> (X (X eStopPermissionOk)))) & ((emergency_stop_button & reset_button) -> (X eStopPermissionOk)))",
+                        "component": "safetyController"
+                    },
+                    "template": {
+                        "id": "template-set-diagnostic-flag",
+                        "values": {
+                            "condition": {
+                                "text": "if (emergency_stop_button & reset_button)",
+                                "isPlaceholder": false
+                            },
+                            "component": {
+                                "text": "safetyController",
+                                "isPlaceholder": false
+                            },
+                            "timing": {
+                                "text": "at the next timepoint",
+                                "isPlaceholder": false
+                            },
+                            "response": {
+                                "text": "eStopPermissionOk",
+                                "isPlaceholder": false
+                            }
+                        }
+                    },
+                    "_id": "f3252ae0-dcc6-11f0-953b-4b01ca35ef2e",
+                    "_rev": "18-cb910c484847497a413ae6050b992ae0"
+                },
+                {
+                    "reqid": "004_eStop_Activated",
+                    "parent_reqid": "",
+                    "project": "test_run",
+                    "rationale": "",
+                    "comments": "",
+                    "status": "completed",
+                    "fulltext": "if !emergency_stop_button,  safetyController shall at the next timepoint satisfy (!eStopPermissionOk)",
+                    "semantics": {
+                        "type": "nasa",
+                        "scope": {
+                            "type": "null"
+                        },
+                        "condition": "regular",
+                        "probability": "null",
+                        "timing": "next",
+                        "response": "satisfaction",
+                        "variables": [
+                            "emergency_stop_button",
+                            "eStopPermissionOk"
+                        ],
+                        "qualifier_word": "if",
+                        "pre_condition": "(! emergency_stop_button)",
+                        "regular_condition": "(! emergency_stop_button)",
+                        "conditionTextRange": [
+                            0,
+                            25
+                        ],
+                        "component_name": "safetyController",
+                        "componentTextRange": [
+                            28,
+                            43
+                        ],
+                        "timingTextRange": [
+                            51,
+                            71
+                        ],
+                        "post_condition": "(( ! eStopPermissionOk ))",
+                        "responseTextRange": [
+                            73,
+                            100
+                        ],
+                        "diagramVariables": "TC = <b><i>(! emergency_stop_button)</i></b>, Response = <b><i>(( ! eStopPermissionOk ))</i></b>.",
+                        "description": "ENFORCED: in the interval defined by the entire execution.\nTRIGGER: first point in the interval if <b><i>(! emergency_stop_button)</i></b> is true and any point in the interval where <b><i>(! emergency_stop_button)</i></b> becomes true (from false).\nREQUIRES: for every trigger, RES must hold at the next time step.",
+                        "diagram": "_media/user-interface/examples/svgDiagrams/null_regular_next_satisfaction.svg",
+                        "scope_mode_pt": "BAD_PT",
+                        "scope_mode_ft": "BAD_FT",
+                        "regular_condition_unexp_pt": "(! emergency_stop_button)",
+                        "regular_condition_unexp_ft": "(! emergency_stop_button)",
+                        "regular_condition_unexp_pctl": "(! emergency_stop_button)",
+                        "regular_condition_SMV_pt": "(! emergency_stop_button)",
+                        "regular_condition_SMV_ft": "(! emergency_stop_button)",
+                        "regular_condition_PRISM_pctl": "(! emergency_stop_button)",
+                        "post_condition_unexp_pt": "(! eStopPermissionOk)",
+                        "post_condition_unexp_ft": "(! eStopPermissionOk)",
+                        "post_condition_unexp_pctl": "(! eStopPermissionOk)",
+                        "post_condition_SMV_pt": "(! eStopPermissionOk)",
+                        "post_condition_SMV_ft": "(! eStopPermissionOk)",
+                        "post_condition_PRISM_pctl": "(! eStopPermissionOk)",
+                        "ft": "((LAST V (((! (! emergency_stop_button)) & ((! LAST) & (X (! emergency_stop_button)))) -> (X (LAST | (X (! eStopPermissionOk)))))) & ((! emergency_stop_button) -> (LAST | (X (! eStopPermissionOk)))))",
+                        "pt": "(H ((Y ((! emergency_stop_button) & (Z (! (! emergency_stop_button))))) -> ((! eStopPermissionOk) | (Z FALSE))))",
+                        "pctl": "P>=1[((G (((! (! emergency_stop_button)) & (X (! emergency_stop_button))) => (X (P>=1[(LAST | (X (! eStopPermissionOk)))])))) & ((! emergency_stop_button) => (P>=1[(LAST | (X (! eStopPermissionOk)))])))]",
+                        "ptExpanded": "(H ((Y ((! emergency_stop_button) & (Z emergency_stop_button))) -> ((! eStopPermissionOk) | (Z FALSE))))",
+                        "CoCoSpecCode": "H((YtoPre((not (emergency_stop_button) and ZtoPre(emergency_stop_button))) => (not (eStopPermissionOk) or ZtoPre(false))))",
+                        "ftExpanded": "((LAST V ((emergency_stop_button & ((! LAST) & (X (! emergency_stop_button)))) -> (X (LAST | (X (! eStopPermissionOk)))))) & ((! emergency_stop_button) -> (LAST | (X (! eStopPermissionOk)))))",
+                        "pctlExpanded": "P>=1[((G (((! (! emergency_stop_button)) & (X (! emergency_stop_button))) => (X (P>=1[(false | (X (! eStopPermissionOk)))])))) & ((! emergency_stop_button) => (P>=1[(false | (X (! eStopPermissionOk)))])))]",
+                        "ftInfAUExpanded": "((G ((emergency_stop_button & (X (! emergency_stop_button))) -> (X (X (! eStopPermissionOk))))) & ((! emergency_stop_button) -> (X (! eStopPermissionOk))))",
+                        "component": "safetyController"
+                    },
+                    "template": {},
+                    "_id": "fbb9d900-dcce-11f0-89f6-7d202990de8c",
+                    "_rev": "12-6834793a88c487d978a788191fc3015c"
+                }
+            ],
+            "selectedReqs": [
+                "001_Auto&HandModesPermissionOK",
+                "005_WaitingForRunningState",
+                "007_ContiuneRunning",
+                "002_Auto&HandModesPermissionNOK",
+                "003_Reset_ESTOP",
+                "004_eStop_Activated",
+                "006_stopRunning"
+            ]
+        }
+    ]
+}
