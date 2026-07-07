@@ -8,7 +8,7 @@ Supplementary materials for the paper:
 
 > **From Normative Text to Verified Control Logic: Multi-Layer Formal Verification and Hardware-in-the-Loop Validation of AGV Emergency Stop Logic**
 >
-> Michal Skupny, Joanna Piasek-Skupna  
+> Michal Skupny
 > Poznan University of Technology, Poland
 
 ## Overview
